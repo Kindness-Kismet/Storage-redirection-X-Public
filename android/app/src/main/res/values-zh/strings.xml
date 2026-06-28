@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">存储重定向 X</string>
+    <string name="app_description">将应用存储重定向到隔离目录</string>
+
+    <!-- Theme -->
+    <string name="theme_title">主题</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_monet_system">动态取色（跟随系统）</string>
+    <string name="theme_monet_light">动态取色（浅色）</string>
+    <string name="theme_monet_dark">动态取色（深色）</string>
+    <string name="settings_ui_mode">界面风格</string>
+    <string name="settings_ui_mode_summary">在 Miuix 和 Material 风格之间切换。</string>
+    <string name="settings_ui_mode_miuix">Miuix</string>
+    <string name="settings_ui_mode_material">Material</string>
+    <string name="settings_theme_summary">主题模式、主题色、调色风格与视觉效果。</string>
+    <string name="settings_monet">动态取色</string>
+    <string name="settings_monet_summary">使用基于壁纸的 Monet 配色。</string>
+    <string name="settings_key_color">主题色</string>
+    <string name="settings_key_color_default">系统</string>
+    <string name="settings_color_style">配色风格</string>
+    <string name="settings_color_spec">配色规范</string>
+    <string name="settings_smooth_corner">平滑圆角</string>
+    <string name="settings_smooth_corner_summary">为 Miuix 组件使用更平滑的圆角。</string>
+    <string name="settings_enable_blur">背景模糊</string>
+    <string name="settings_enable_blur_summary">启用窗口背景模糊效果。</string>
+    <string name="settings_page_scale">页面缩放</string>
+    <string name="settings_page_scale_summary">调整整体界面缩放比例。</string>
+    <string name="color_red">红色</string>
+    <string name="color_pink">粉色</string>
+    <string name="color_purple">紫色</string>
+    <string name="color_deep_purple">深紫</string>
+    <string name="color_indigo">靛蓝</string>
+    <string name="color_blue">蓝色</string>
+    <string name="color_cyan">青色</string>
+    <string name="color_teal">蓝绿色</string>
+    <string name="color_green">绿色</string>
+    <string name="color_yellow">黄色</string>
+    <string name="color_amber">琥珀</string>
+    <string name="color_orange">橙色</string>
+    <string name="color_brown">棕色</string>
+    <string name="color_blue_grey">蓝灰</string>
+    <string name="color_sakura">樱花粉</string>
+
+    <!-- Language -->
+    <string name="language_title">语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_en">English</string>
+    <string name="language_zh_cn">简体中文</string>
+
+    <!-- Home -->
+    <string name="home_title">存储重定向 X</string>
+    <string name="home_zygisk_status">Zygisk 模块状态</string>
+    <string name="home_module_installed">模块已安装</string>
+    <string name="home_module_not_installed">模块未安装</string>
+    <string name="home_version">版本</string>
+    <string name="home_apps">应用管理</string>
+    <string name="home_logs">日志</string>
+    <string name="home_file_monitor">文件监视</string>
+    <string name="home_settings">设置</string>
+    <string name="home_redirected_apps">已重定向应用</string>
+    <string name="home_total_apps">应用总数</string>
+    <string name="home_redirect_count">生效次数</string>
+    <string name="home_features">功能</string>
+    <string name="home_apps_desc">管理允许真实路径</string>
+    <string name="home_logs_desc">查看模块运行日志</string>
+    <string name="home_file_monitor_desc">查看应用文件操作记录</string>
+    <string name="home_settings_desc">主题、语言等设置</string>
+
+    <!-- 首页操作 -->
+    <string name="home_actions_menu">快捷操作</string>
+    <string name="home_action_restart_media">重启媒体工具</string>
+    <string name="home_action_restart_media_confirm_title">重启媒体工具？</string>
+    <string name="home_action_restart_media_confirm_summary">媒体工具将重启，已开启重定向的应用会被关闭，下次打开时重新生效规则。期间相册、相机可能短暂无法访问，是否继续？</string>
+    <string name="home_action_restart_media_running">正在重启媒体工具…</string>
+    <string name="home_action_restart_media_success">媒体工具已重启</string>
+    <string name="home_action_restart_media_failed">媒体工具重启失败</string>
+    <string name="home_action_restart_media_root_required">需要 Root 权限，当前不可用</string>
+
+    <!-- Logs -->
+    <string name="logs_title">日志</string>
+    <string name="logs_filter">过滤</string>
+    <string name="logs_filter_keyword">过滤关键字</string>
+    <string name="logs_enter_keyword">输入关键字…</string>
+    <string name="logs_no_match">无匹配日志</string>
+    <string name="logs_no_match_desc">尝试使用其他关键词过滤</string>
+    <string name="logs_total_logs">共 %1$d 条日志</string>
+    <string name="logs_copy_all">复制全部</string>
+    <string name="logs_copied">已复制</string>
+    <string name="logs_copied_line">已复制行内容</string>
+    <string name="logs_refresh">刷新</string>
+    <string name="logs_clear">清空</string>
+    <string name="logs_empty">暂无日志</string>
+    <string name="logs_loading">加载日志…</string>
+    <string name="logs_export">导出</string>
+    <string name="logs_exported">日志已导出</string>
+    <string name="logs_export_failed">导出失败</string>
+
+    <!-- File Monitor -->
+    <string name="file_monitor_title">文件监视</string>
+    <string name="file_monitor_filter">筛选</string>
+    <string name="file_monitor_filter_by_package">按包名筛选</string>
+    <string name="file_monitor_search_hint">搜索应用名、包名或路径</string>
+    <string name="file_monitor_filter_by_operation">按操作类型</string>
+    <string name="file_monitor_all_operations">全部操作</string>
+    <string name="file_monitor_op_write">写入</string>
+    <string name="file_monitor_op_create">创建</string>
+    <string name="file_monitor_op_mkdir">目录</string>
+    <string name="file_monitor_op_delete">删除</string>
+    <string name="file_monitor_op_rename">重命名</string>
+    <string name="file_monitor_refresh">刷新</string>
+    <string name="file_monitor_expand">展开完整路径</string>
+    <string name="file_monitor_collapse">折叠路径</string>
+    <string name="file_monitor_clear">清空</string>
+    <string name="file_monitor_clear_confirm">将清空所有监视记录，是否继续？</string>
+    <string name="file_monitor_empty">暂无监视记录</string>
+    <string name="file_monitor_loading">加载监控记录…</string>
+    <string name="file_monitor_result_success">成功</string>
+    <string name="file_monitor_result_failed">失败</string>
+    <string name="file_monitor_action_open">打开</string>
+    <string name="file_monitor_action_create">创建</string>
+    <string name="file_monitor_action_delete">删除</string>
+    <string name="file_monitor_action_rename">重命名</string>
+    <string name="file_monitor_source_filesystem_action">通过文件系统%1$s</string>
+    <string name="file_monitor_source_media_action">通过媒体工具%1$s</string>
+    <string name="file_monitor_source_download_action">通过下载工具%1$s</string>
+    <string name="file_monitor_source_mtp_action">通过 MTP 工具%1$s</string>
+    <string name="file_monitor_source_system_writer_action">通过系统代写工具%1$s</string>
+
+    <!-- Apps -->
+    <string name="apps_title">应用列表</string>
+    <string name="apps_search">搜索应用…</string>
+    <string name="apps_filter">筛选</string>
+    <string name="apps_filter_options">筛选选项</string>
+    <string name="apps_sort_by_name">按名称排序</string>
+    <string name="apps_sort_by_install_time">按安装时间排序</string>
+    <string name="apps_switch_user">切换用户</string>
+    <string name="apps_show_system_apps">显示系统应用</string>
+    <string name="apps_redirected_first">已重定向优先</string>
+    <string name="apps_redirected">已重定向</string>
+    <string name="apps_not_redirected">未重定向</string>
+    <string name="apps_system">系统</string>
+    <string name="apps_tag_redirected">已重定向</string>
+    <string name="apps_no_apps">未找到应用</string>
+    <string name="apps_loading">加载中…</string>
+    <string name="apps_refresh">刷新</string>
+    <string name="apps_templates">模板</string>
+    <string name="apps_long_press_actions">应用操作</string>
+    <string name="apps_apply_template">选择模板</string>
+    <string name="apps_save_as_template">保存当前配置为模板</string>
+    <string name="apps_template_empty">暂无模板</string>
+    <string name="apps_template_apply_mode_title">应用模板</string>
+    <string name="apps_template_apply_mode_summary">选择模板“%1$s”应用到“%2$s”的方式。应用后将开启重定向开关。</string>
+    <string name="apps_template_apply_merge">合并</string>
+    <string name="apps_template_apply_replace">覆盖</string>
+    <string name="apps_template_shared_uid_confirm_title">同步共享 UID 应用？</string>
+    <string name="apps_template_shared_uid_confirm_summary">此应用与以下应用共享 UID，模板将同步应用到它们；取消则不应用模板：\n%1$s</string>
+    <string name="apps_template_apply_success">模板已应用</string>
+    <string name="apps_template_save_failed_empty">当前应用没有可保存的规则</string>
+    <string name="apps_selected">已选择</string>
+    <string name="apps_selected_count">已选择 %1$d 个</string>
+    <string name="apps_select_all">全选</string>
+    <string name="apps_invert_selection">反选</string>
+    <string name="apps_restore_rules">还原规则</string>
+    <string name="apps_restore_rules_title">还原规则</string>
+    <string name="apps_restore_rules_summary">移除已选应用的所有允许路径和路径映射，重定向开关保持不变。</string>
+    <string name="apps_restore_rules_success">规则已还原</string>
+    <string name="apps_template_restore">还原</string>
+
+    <!-- Templates -->
+    <string name="templates_title">模板</string>
+    <string name="templates_add">添加模板</string>
+    <string name="templates_edit">编辑模板</string>
+    <string name="templates_delete">删除模板</string>
+    <string name="templates_delete_confirm">确定要删除模板“%1$s”吗？</string>
+    <string name="templates_name">模板名称</string>
+    <string name="templates_name_empty">模板名称不能为空</string>
+    <string name="templates_empty">暂无模板</string>
+    <string name="templates_save_from_app_title">保存为模板</string>
+    <string name="templates_saved">模板已保存</string>
+
+    <!-- Rule Config -->
+    <string name="rule_config_title">允许真实路径</string>
+    <string name="rule_config_enable_redirect">开启重定向</string>
+    <string name="rule_config_redirect_enabled">已启用重定向</string>
+    <string name="rule_config_redirect_disabled">未启用重定向</string>
+    <string name="rule_config_allowed_paths">允许访问路径</string>
+    <string name="rule_config_path_mappings">路径映射</string>
+    <string name="rule_config_add_path">添加路径</string>
+    <string name="rule_config_edit_path">编辑路径</string>
+    <string name="rule_config_delete_path">删除路径</string>
+    <string name="rule_config_delete_confirm">确定要删除这条路径吗？</string>
+    <string name="rule_config_real_path">真实路径</string>
+    <string name="rule_config_add_mapping">添加映射</string>
+    <string name="rule_config_edit_mapping">编辑映射</string>
+    <string name="rule_config_delete_mapping">删除映射</string>
+    <string name="rule_config_delete_mapping_confirm">确定要删除这条映射吗？</string>
+    <string name="rule_config_mapping_request_path">请求路径</string>
+    <string name="rule_config_mapping_final_path">最终路径</string>
+    <string name="rule_config_no_paths">未配置允许路径</string>
+    <string name="rule_config_no_mappings">未配置映射</string>
+    <string name="rule_config_restart_hint">修改后将自动停止目标应用以使配置生效</string>
+    <string name="rule_config_shared_uid_title">共享 UID</string>
+    <string name="rule_config_shared_uid_hint">此应用与以下应用共享 UID，开关或配置任一应用将同步影响所有关联应用：</string>
+    <string name="rule_config_save_failed">保存失败</string>
+    <string name="rule_config_error_empty">路径不能为空</string>
+    <string name="rule_config_error_absolute">路径必须为相对路径（不能以 / 开头）</string>
+    <string name="rule_config_error_traversal">路径不能包含 ..</string>
+    <string name="rule_config_error_same_paths">当前路径和目标路径不能相同</string>
+    <string name="rule_config_error_android_prefix">路径不能位于 Android/data 下</string>
+    <string name="rule_config_error_mapping_wildcard">映射路径不支持 * 或 ? 通配符</string>
+    <string name="rule_config_error_mapping_exclusion">映射路径不支持 ! 排除前缀</string>
+    <string name="rule_config_allowed_paths_rule_hint">支持通配符: * ?\n* 表示任意长度字符。\n? 表示单个字符。\n! 表示排除前缀。\n仅支持真实路径访问。</string>
+    <string name="rule_config_allowed_paths_rule_hint_desc">查看规则说明</string>
+    <string name="rule_config_browse">浏览</string>
+    <string name="rule_config_browser_use_current">选择当前目录</string>
+    <string name="rule_config_browser_root">根目录</string>
+    <string name="rule_config_browser_subdirs">子目录</string>
+    <string name="rule_config_browser_load_failed">读取目录失败</string>
+    <string name="rule_config_browser_invalid_path">路径无效</string>
+    <string name="rule_config_browser_title">选择目录</string>
+    <string name="rule_config_browser_empty">空目录</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_monitor">文件监控</string>
+    <string name="settings_floating_bottom_bar">悬浮底栏</string>
+    <string name="settings_floating_bottom_bar_summary">启用悬浮在页面内容之上的底栏。</string>
+    <string name="settings_floating_bottom_bar_blur">底栏模糊</string>
+    <string name="settings_floating_bottom_bar_blur_summary">仅为悬浮底栏启用模糊效果。</string>
+    <string name="settings_monitor_all_apps">文件监控开关</string>
+    <string name="settings_monitor_all_apps_desc">开启后监控 media.module 和已启用重定向的应用</string>
+    <string name="settings_fuse_fixer">FuseFixer</string>
+    <string name="settings_fuse_fixer_summary">在 MediaProvider FUSE 路径校验中清理隐藏 Unicode 标记。</string>
+    <string name="settings_tools">工具</string>
+    <string name="settings_logs_entry_desc">查看模块运行日志</string>
+    <string name="settings_backup_restore">备份与还原</string>
+    <string name="settings_backup_title">备份包名配置与模板</string>
+    <string name="settings_backup_desc">通过系统文件选择器导出 ZIP，同时更新本地备份缓存：%1$s</string>
+    <string name="settings_restore_title">还原包名配置与模板</string>
+    <string name="settings_restore_desc">从 %1$s 读取包名配置 JSON 并还原</string>
+    <string name="settings_backup_restore_root_required">需要 Root，当前不可用</string>
+    <string name="settings_root_checking">正在检查 Root 状态…</string>
+    <string name="settings_action_running">处理中…</string>
+    <string name="settings_backup_success">备份完成</string>
+    <string name="settings_backup_failed">备份失败</string>
+    <string name="settings_restore_success">还原完成</string>
+    <string name="settings_restore_failed">还原失败</string>
+    <string name="settings_backup_success_with_count">备份完成（%1$d 个应用）</string>
+    <string name="settings_backup_failed_with_count">备份失败（已收集 %1$d 个应用）</string>
+    <string name="settings_restore_success_with_count">还原完成（%1$d 个应用）</string>
+    <string name="settings_restore_failed_with_count">还原未完全生效（已恢复 %1$d 个应用）</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_backup_restore_name">备份与还原状态</string>
+    <string name="notification_channel_backup_restore_desc">显示包名配置备份和还原结果</string>
+    <string name="notification_backup_success_title">备份成功</string>
+    <string name="notification_backup_failed_title">备份失败</string>
+    <string name="notification_restore_success_title">还原成功</string>
+    <string name="notification_restore_failed_title">还原失败</string>
+    <string name="notification_backup_success_text">包名配置已导出为 ZIP 备份（%1$d 个应用）</string>
+    <string name="notification_backup_failed_text">包名配置导出 ZIP 失败（已收集 %1$d 个应用）</string>
+    <string name="notification_restore_success_text">包名配置已恢复（%1$d 个应用）</string>
+    <string name="notification_restore_failed_text">恢复未完全生效：已恢复 %1$d 个应用</string>
+    <string name="settings_update">检查更新</string>
+    <string name="settings_update_check_on_launch">启动时检查更新</string>
+    <string name="settings_update_check_now">立即检查</string>
+    <string name="settings_update_checking">检查中…</string>
+    <string name="settings_update_latest">已是最新版本</string>
+    <string name="settings_update_available">发现新版本：v%1$s</string>
+    <string name="settings_update_download">前往下载</string>
+    <string name="settings_update_ignore">忽略本次更新</string>
+    <string name="settings_update_failed">检查更新失败</string>
+    <string name="settings_update_toast">发现新版本：v%1$s</string>
+    <string name="settings_update_release_notes">更新内容</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_version_info">版本</string>
+    <string name="settings_open_source_licenses">开源协议</string>
+    <string name="settings_open_source_licenses_desc">查看本应用使用的第三方开源组件</string>
+    <string name="settings_android_libraries">Android 库</string>
+    <string name="settings_native_libraries">原生库</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">首页</string>
+    <string name="nav_apps">应用</string>
+    <string name="nav_logs">日志</string>
+    <string name="nav_monitor">监视</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- Home - Device Info -->
+    <string name="home_device_info">设备信息</string>
+    <string name="home_android_version">Android 版本</string>
+    <string name="home_sdk_level">API 等级</string>
+    <string name="home_kernel_version">内核</string>
+    <string name="home_selinux_status">SELinux</string>
+    <string name="home_device_model">设备</string>
+    <string name="home_system_arch">架构</string>
+
+    <!-- Common -->
+    <string name="common_ok">确定</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_close">关闭</string>
+    <string name="common_delete">删除</string>
+    <string name="common_edit">编辑</string>
+    <string name="common_add">添加</string>
+    <string name="common_save">保存</string>
+    <string name="common_search">搜索</string>
+    <string name="common_filter">筛选</string>
+    <string name="common_retry">重试</string>
+    <string name="common_loading">加载中…</string>
+    <string name="common_error">错误</string>
+    <string name="common_success">成功</string>
+
+    <!-- Permission -->
+    <string name="permission_title">需要授权</string>
+    <string name="permission_description">应用需要以下权限才能正常工作</string>
+    <string name="permission_root">Root 权限</string>
+    <string name="permission_root_desc">用于重定向和配置管理</string>
+    <string name="permission_notification">通知权限</string>
+    <string name="permission_notification_desc">用于状态通知</string>
+    <string name="permission_grant">授权</string>
+    <string name="permission_granted">已授权</string>
+    <string name="permission_checking">检查中…</string>
+    <string name="permission_retry">重试</string>
+</resources>

@@ -1,0 +1,85 @@
+Storage Redirect X Open Source License and Notices
+
+Copyright (c) 2026 Kindness-Kismet
+
+1. Project license
+
+Unless otherwise stated below, the original source code of Storage Redirect X
+is licensed under the GNU General Public License, version 3.0 or any later
+version published by the Free Software Foundation (GPL-3.0-or-later).
+
+You may use, copy, study, modify, and distribute this project under the terms
+of GPL-3.0-or-later. If you distribute modified versions or binaries, you must
+provide the corresponding source code and keep the same license obligations for
+covered work.
+
+The full GPL-3.0 license text is available at:
+https://www.gnu.org/licenses/gpl-3.0.html
+
+2. No warranty and user responsibility
+
+This project is provided "as is", without warranty of any kind. The authors and
+contributors are not responsible for device damage, data loss, boot failure,
+root environment instability, app compatibility problems, or any other loss
+caused by installing, modifying, or using this project.
+
+Storage Redirect X works in privileged Android environments and may interact
+with Zygisk, native hooks, mount namespaces, MediaProvider, and shared storage.
+Users and distributors must understand the risk before use.
+
+3. Third-party projects and licenses
+
+This repository uses or vendors the following open-source projects. These
+components keep their own upstream licenses and notices. If a third-party
+license grants different rights or imposes additional obligations, that license
+continues to apply to that component.
+
+Vendored native components:
+
+- LSPlant: LGPL-3.0, see `srx_core/vendor/lsplant/LICENSE.LSPlant`.
+- DexBuilder: LGPL-3.0, see `srx_core/vendor/lsplant/external/dex_builder/LICENSE.DexBuilder`.
+- parallel_hashmap: Apache-2.0, see `srx_core/vendor/lsplant/external/dex_builder/external/parallel_hashmap/LICENSE.parallel_hashmap`.
+
+Rust dependencies:
+
+- libc
+- jni-sys
+- serde
+- serde_json
+- once_cell
+- log
+- srx_hook
+- srx_inline_hook
+
+Android/Kotlin dependencies:
+
+- Android Gradle Plugin
+- Kotlin and Compose compiler/plugin
+- AndroidX Core, Activity, Lifecycle, Compose UI, Compose Foundation, Compose Material Icons, and Material 3
+- Material Kolor
+- Miuix UI, icons, preference, and blur modules
+- kotlinx.coroutines
+- Gson
+- HiddenApiBypass
+- Backdrop
+- Capsule
+
+Build and packaging tools:
+
+- Gradle
+- Android SDK / NDK / build-tools
+- CMake
+- Ninja
+- Rust toolchain and Cargo
+
+4. Trademarks and names
+
+This license does not grant trademark rights to the project name, project icon,
+or maintainer identity. Forks should clearly mark themselves as modified or
+unofficial when distributed publicly.
+
+5. Conflict handling
+
+If this notice conflicts with an included third-party license, the third-party
+license controls that third-party component. The Storage Redirect X original
+code remains GPL-3.0-or-later unless a file explicitly states otherwise.

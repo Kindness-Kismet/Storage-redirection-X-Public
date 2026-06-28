@@ -1,0 +1,285 @@
+name: 构建正式版
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 1.0.140，会自动添加 v 前缀）'
+        required: false
+        type: string
+      publish_release:
+        description: '是否发布到当前仓库 Release'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: 准备构建元信息
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.tag.outputs.tag }}
+      publish_release: ${{ steps.publish.outputs.publish_release }}
+      changelog_base64: ${{ steps.changelog.outputs.changelog_base64 }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v6
+
+      - name: 读取版本号
+        id: version
+        shell: bash
+        run: |
+          version=$(grep '^appVersionName=' android/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          if [ -z "${version}" ]; then
+            echo "无法从 android/gradle.properties 读取版本号" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: 读取并展示更新日志
+        id: changelog
+        shell: bash
+        run: |
+          changelog_file=".github/CHANGELOG.md"
+          if [ ! -f "${changelog_file}" ]; then
+            echo "缺少更新日志文件: ${changelog_file}" >&2
+            exit 1
+          fi
+          echo "========== 本次更新日志 =========="
+          cat "${changelog_file}"
+          changelog_base64="$(base64 -w 0 "${changelog_file}")"
+          printf 'changelog_base64=%s\n' "${changelog_base64}" >> "${GITHUB_OUTPUT}"
+
+      - name: 解析发布 Tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            input_version="${{ github.event.inputs.version }}"
+            input_version="${input_version#v}"
+            tag="v${input_version}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            tag="${{ github.ref_name }}"
+          else
+            tag="v${{ steps.version.outputs.version }}"
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: 校验版本号一致性
+        shell: bash
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          gradle_version="${{ steps.version.outputs.version }}"
+          tag_version="${tag#v}"
+          if [ "${tag_version}" != "${gradle_version}" ]; then
+            echo "Tag 版本 (${tag_version}) 与 gradle.properties 版本 (${gradle_version}) 不一致" >&2
+            exit 1
+          fi
+
+      - name: 判定是否发布
+        id: publish
+        shell: bash
+        run: |
+          should_publish=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            should_publish="${{ github.event.inputs.publish_release }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            should_publish=true
+          fi
+          echo "publish_release=${should_publish}" >> "${GITHUB_OUTPUT}"
+
+      - name: 验证签名配置
+        id: signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          has_signing=true
+          missing_keys=()
+          for key in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!key}" ]; then
+              has_signing=false
+              missing_keys+=("${key}")
+            fi
+          done
+          echo "has_signing=${has_signing}" >> "${GITHUB_OUTPUT}"
+          if [ "${has_signing}" = "false" ]; then
+            echo "::warning::未配置签名 Secrets，将使用 debug 签名"
+            printf '缺少签名配置: %s\n' "${missing_keys[*]}" >&2
+            exit 0
+          fi
+          keystore_path="${RUNNER_TEMP}/release.jks"
+          if ! printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"; then
+            echo "签名库解码失败: ANDROID_KEYSTORE_BASE64" >&2
+            exit 1
+          fi
+          if ! keytool -list -keystore "${keystore_path}" \
+            -storepass "${ANDROID_KEYSTORE_PASSWORD}" \
+            -alias "${ANDROID_KEY_ALIAS}" > /dev/null; then
+            echo "签名库校验失败: 请检查 ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS" >&2
+            exit 1
+          fi
+          echo "签名验证通过"
+
+  build:
+    name: 构建 (${{ matrix.abi }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+          - abi: x86_64
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v6
+
+      - name: 配置 Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: 配置 Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: 配置 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+
+      - name: 配置 Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: 安装主机编译工具
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: 安装 NDK 和 CMake
+        shell: bash
+        run: |
+          (yes | sdkmanager --licenses > /dev/null) || true
+          ndk_version="29.0.14206865"
+          latest_cmake_pkg=$(sdkmanager --list | tr -d '\r' | grep -oE 'cmake;[0-9][0-9.]+' | sort -Vu | tail -n 1)
+          sdkmanager "ndk;${ndk_version}" "${latest_cmake_pkg}"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${ndk_version}" >> "${GITHUB_ENV}"
+
+      - name: 准备 APK 签名
+        id: signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64}" ]; then
+            echo "未配置签名 Secrets，将使用 debug 签名"
+            exit 0
+          fi
+          keystore_path="${RUNNER_TEMP}/release.jks"
+          if ! printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"; then
+            echo "签名库解码失败: ANDROID_KEYSTORE_BASE64" >&2
+            exit 1
+          fi
+          echo "keystore_path=${keystore_path}" >> "${GITHUB_OUTPUT}"
+
+      - name: 构建 Zygisk (${{ matrix.abi }})
+        run: python scripts/build.py build-zygisk --abi ${{ matrix.abi }} -v
+
+      - name: 构建 APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python scripts/build.py build-apk --abi ${{ matrix.abi }} -v
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-${{ matrix.abi }}
+          path: |
+            build/zygisk/
+            build/apk/
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: 发布到当前仓库
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.publish_release == 'true'
+    concurrency:
+      group: release-${{ needs.prepare.outputs.tag }}
+      cancel-in-progress: false
+
+    steps:
+      - name: 下载所有构建产物
+        uses: actions/download-artifact@v8
+        with:
+          pattern: build-*
+          path: release/
+          merge-multiple: true
+
+      - name: 使用 gh 发布到当前仓库
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_NAME: Storage Redirection X ${{ needs.prepare.outputs.version }}
+          CHANGELOG_BASE64: ${{ needs.prepare.outputs.changelog_base64 }}
+        run: |
+          set -euo pipefail
+
+          changelog_file="$(mktemp)"
+          if [ -n "${CHANGELOG_BASE64}" ]; then
+            printf '%s' "${CHANGELOG_BASE64}" | base64 -d > "${changelog_file}"
+          else
+            echo "## 更新日志" > "${changelog_file}"
+            echo "" >> "${changelog_file}"
+            echo "暂无更新内容。" >> "${changelog_file}"
+          fi
+
+          release_notes_file="$(mktemp)"
+          cat "${changelog_file}" > "${release_notes_file}"
+
+          echo "========== 发布说明 =========="
+          cat "${release_notes_file}"
+
+          if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" \
+              --title "${RELEASE_NAME}" \
+              --notes-file "${release_notes_file}"
+          else
+            gh release create "${RELEASE_TAG}" \
+              --target main \
+              --title "${RELEASE_NAME}" \
+              --notes-file "${release_notes_file}"
+          fi
+
+          mapfile -t release_assets < <(
+            find release -type f \( -name '*.zip' -o -name '*.apk' \) | sort
+          )
+          if [ "${#release_assets[@]}" -eq 0 ]; then
+            echo "没有找到可发布产物" >&2
+            exit 1
+          fi
+
+          gh release upload "${RELEASE_TAG}" \
+            "${release_assets[@]}" \
+            --clobber

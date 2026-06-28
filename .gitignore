@@ -1,0 +1,84 @@
+# Build outputs
+build/
+!scripts/src/build/
+!scripts/src/build/*.rs
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Android / Gradle
+android/.gradle/
+android/.kotlin/
+android/.cxx/
+android/**/build/
+android/local.properties
+compose/.gradle/
+compose/.kotlin/
+compose/**/build/
+compose/local.properties
+*.jks
+*.keystore
+
+# Zygisk (native build artifacts)
+native/
+!srx_core/native/
+srx_core/build/
+srx_core/libs/
+srx_core/releases/
+**/target/
+assets/zygisk_module/module.prop
+assets/zygisk_module/module_version.txt
+assets/zygisk_module/libs/**
+!assets/zygisk_module/libs/.gitkeep
+
+# Lock files
+Cargo.lock
+srx_core/Cargo.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+npm-shrinkwrap.json
+composer.lock
+Gemfile.lock
+Podfile.lock
+**/gradle.lockfile
+
+# Local tooling / AI assistants
+.codex/*
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/version-bump/
+!.codex/skills/version-bump/SKILL.md
+codex/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/version-bump/
+!.claude/skills/version-bump/SKILL.md
+.worktrees/
+AGENTS.md
+CLAUDE.md
+
+# Secrets / local credentials
+.env
+.env.*
+*.pem
+*.key
+*.p8
+*.p12
+*.cer
+
+# Local scratch files
+tmp_*.rs
+*.txt
+!srx_core/vendor/lsplant/CMakeLists.txt
+!srx_core/vendor/lsplant/external/dex_builder/CMakeLists.txt
+!srx_core/vendor/lsplant/external/dex_builder/external/parallel_hashmap/CMakeLists.txt
+*.json
+
+*.code-workspace

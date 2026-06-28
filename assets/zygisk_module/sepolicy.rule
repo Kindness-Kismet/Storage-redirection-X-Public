@@ -1,0 +1,45 @@
+allow zygote adb_data_file dir search
+allow zygote adb_data_file dir open
+allow zygote adb_data_file dir read
+allow zygote adb_data_file dir getattr
+allow zygote adb_data_file file open
+allow zygote adb_data_file file read
+allow zygote adb_data_file file getattr
+
+allow zygote shell_data_file dir search
+allow zygote shell_data_file dir open
+allow zygote shell_data_file dir read
+allow zygote shell_data_file dir getattr
+allow zygote shell_data_file file open
+allow zygote shell_data_file file read
+allow zygote shell_data_file file getattr
+allow zygote shell_data_file dir write
+allow zygote shell_data_file dir add_name
+allow zygote shell_data_file dir remove_name
+allow zygote shell_data_file file write
+allow zygote shell_data_file file append
+allow zygote shell_data_file file create
+allow zygote shell_data_file file unlink
+
+allow appdomain adb_data_file dir search
+allow appdomain adb_data_file dir open
+allow appdomain adb_data_file dir read
+allow appdomain adb_data_file dir getattr
+allow appdomain adb_data_file file open
+allow appdomain adb_data_file file read
+allow appdomain adb_data_file file getattr
+
+allow appdomain shell_data_file dir search
+allow appdomain shell_data_file dir open
+allow appdomain shell_data_file dir read
+allow appdomain shell_data_file dir getattr
+allow appdomain shell_data_file dir write
+allow appdomain shell_data_file dir add_name
+allow appdomain shell_data_file dir remove_name
+allow appdomain shell_data_file file open
+allow appdomain shell_data_file file read
+allow appdomain shell_data_file file write
+allow appdomain shell_data_file file append
+allow appdomain shell_data_file file getattr
+allow appdomain shell_data_file file create
+allow appdomain shell_data_file file unlink

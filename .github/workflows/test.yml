@@ -1,0 +1,203 @@
+name: 构建测试
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  prepare:
+    name: 准备构建元信息
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      changelog_base64: ${{ steps.changelog.outputs.changelog_base64 }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v6
+
+      - name: 读取版本号
+        id: version
+        shell: bash
+        run: |
+          version=$(grep '^appVersionName=' android/gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: 读取并展示更新日志
+        id: changelog
+        shell: bash
+        run: |
+          changelog_file=".github/CHANGELOG.md"
+          if [ ! -f "${changelog_file}" ]; then
+            echo "缺少更新日志文件: ${changelog_file}" >&2
+            exit 1
+          fi
+          echo "========== 本次更新日志 =========="
+          cat "${changelog_file}"
+          changelog_base64="$(base64 -w 0 "${changelog_file}")"
+          printf 'changelog_base64=%s\n' "${changelog_base64}" >> "${GITHUB_OUTPUT}"
+
+      - name: 检查签名配置
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          has_signing=true
+          for key in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!key}" ]; then
+              has_signing=false
+              break
+            fi
+          done
+          if [ "${has_signing}" = "false" ]; then
+            echo "::warning::未配置签名 Secrets，Python 构建脚本会使用 debug 签名"
+            exit 0
+          fi
+          keystore_path="${RUNNER_TEMP}/release.jks"
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
+          keytool -list -keystore "${keystore_path}" \
+            -storepass "${ANDROID_KEYSTORE_PASSWORD}" \
+            -alias "${ANDROID_KEY_ALIAS}" > /dev/null
+          echo "签名验证通过"
+
+  verify:
+    name: 测试与检查
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v6
+
+      - name: 配置 Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: 配置 Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: 配置 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: 配置 Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: 安装主机编译工具
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: 安装 NDK 和 CMake
+        shell: bash
+        run: |
+          (yes | sdkmanager --licenses > /dev/null) || true
+          ndk_version="29.0.14206865"
+          latest_cmake_pkg=$(sdkmanager --list | tr -d '\r' | grep -oE 'cmake;[0-9][0-9.]+' | sort -Vu | tail -n 1)
+          sdkmanager "ndk;${ndk_version}" "${latest_cmake_pkg}"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${ndk_version}" >> "${GITHUB_ENV}"
+
+      - name: 执行 Clippy
+        run: cargo clippy --manifest-path srx_core/Cargo.toml --target aarch64-linux-android -- -D warnings
+
+      - name: 执行 Android Lint
+        shell: bash
+        run: |
+          chmod +x ./android/gradlew
+          ./android/gradlew -p ./android :app:lintDebug
+
+      - name: 准备 APK 签名
+        id: signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64}" ]; then
+            echo "未配置签名 Secrets，将使用 debug 签名"
+            exit 0
+          fi
+          keystore_path="${RUNNER_TEMP}/release.jks"
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
+          echo "keystore_path=${keystore_path}" >> "${GITHUB_OUTPUT}"
+
+      - name: 验证 Python 构建脚本
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python scripts/build.py build-zygisk --abi arm64-v8a
+          python scripts/build.py build-apk --abi arm64-v8a
+
+      - name: 校验构建产物
+        shell: bash
+        run: |
+          test -f build/zygisk/Storage-Redirect-X_v${{ needs.prepare.outputs.version }}-arm64-v8a.zip
+          test -f build/apk/Storage-Redirect-X_${{ needs.prepare.outputs.version }}_arm64-v8a.apk
+
+  auto-release:
+    name: 自动触发正式版
+    needs: [prepare, verify]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 检查发布条件
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${{ needs.prepare.outputs.version }}"
+          tag="v${version}"
+          latest_tag="$(git tag -l 'v*' --sort=-version:refname | head -n 1)"
+
+          if git rev-parse -q --verify "refs/tags/${tag}" > /dev/null; then
+            echo "标签 ${tag} 已存在，跳过正式发布"
+            echo "should_release=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [ -n "${latest_tag}" ] && [ "${latest_tag}" = "${tag}" ]; then
+            echo "版本号未更新，跳过正式发布"
+            echo "should_release=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "should_release=true" >> "${GITHUB_OUTPUT}"
+
+      - name: 推送标签并触发正式版工作流
+        if: steps.check.outputs.should_release == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          version="${{ needs.prepare.outputs.version }}"
+          tag="v${version}"
+
+          git tag "${tag}"
+          git push origin "${tag}"
+          gh workflow run release.yml -f version="${version}" -f publish_release=true

@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">Storage Redirect X</string>
+    <string name="app_description">Redirect app storage to isolated directories</string>
+
+    <!-- Theme -->
+    <string name="theme_title">Theme</string>
+    <string name="theme_system">Follow System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_monet_system">Dynamic Color (System)</string>
+    <string name="theme_monet_light">Dynamic Color (Light)</string>
+    <string name="theme_monet_dark">Dynamic Color (Dark)</string>
+    <string name="settings_ui_mode">UI style</string>
+    <string name="settings_ui_mode_summary">Switch between Miuix and Material style.</string>
+    <string name="settings_ui_mode_miuix">Miuix</string>
+    <string name="settings_ui_mode_material">Material</string>
+    <string name="settings_theme_summary">Theme mode, colors, palette and visual effects.</string>
+    <string name="settings_monet">Dynamic color</string>
+    <string name="settings_monet_summary">Use wallpaper-based Monet colors.</string>
+    <string name="settings_key_color">Theme color</string>
+    <string name="settings_key_color_default">System</string>
+    <string name="settings_color_style">Color style</string>
+    <string name="settings_color_spec">Color spec</string>
+    <string name="settings_smooth_corner">Smooth corners</string>
+    <string name="settings_smooth_corner_summary">Use smoother rounded corners in Miuix components.</string>
+    <string name="settings_enable_blur">Background blur</string>
+    <string name="settings_enable_blur_summary">Enable window background blur effect.</string>
+    <string name="settings_page_scale">Page scale</string>
+    <string name="settings_page_scale_summary">Adjust the overall UI scale.</string>
+    <string name="color_red">Red</string>
+    <string name="color_pink">Pink</string>
+    <string name="color_purple">Purple</string>
+    <string name="color_deep_purple">Deep purple</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_cyan">Cyan</string>
+    <string name="color_teal">Teal</string>
+    <string name="color_green">Green</string>
+    <string name="color_yellow">Yellow</string>
+    <string name="color_amber">Amber</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_brown">Brown</string>
+    <string name="color_blue_grey">Blue grey</string>
+    <string name="color_sakura">Sakura</string>
+
+    <!-- Language -->
+    <string name="language_title">Language</string>
+    <string name="language_system">Follow System</string>
+    <string name="language_en">English</string>
+    <string name="language_zh_cn">简体中文</string>
+
+    <!-- Home -->
+    <string name="home_title">Storage Redirect X</string>
+    <string name="home_zygisk_status">Zygisk Module Status</string>
+    <string name="home_module_installed">Module Installed</string>
+    <string name="home_module_not_installed">Module Not Installed</string>
+    <string name="home_version">Version</string>
+    <string name="home_apps">App Management</string>
+    <string name="home_logs">Logs</string>
+    <string name="home_file_monitor">File Monitor</string>
+    <string name="home_settings">Settings</string>
+    <string name="home_redirected_apps">Redirected Apps</string>
+    <string name="home_total_apps">Total Apps</string>
+    <string name="home_redirect_count">Redirect Count</string>
+    <string name="home_features">Features</string>
+    <string name="home_apps_desc">Manage allowed real paths</string>
+    <string name="home_logs_desc">View module running logs</string>
+    <string name="home_file_monitor_desc">View app file operation records</string>
+    <string name="home_settings_desc">Theme, language and more</string>
+
+    <!-- Home Actions -->
+    <string name="home_actions_menu">Quick actions</string>
+    <string name="home_action_restart_media">Restart media tool</string>
+    <string name="home_action_restart_media_confirm_title">Restart media tool?</string>
+    <string name="home_action_restart_media_confirm_summary">The media tool will restart and apps with redirection enabled will be closed, reapplying rules on next launch. Gallery and camera may be briefly unavailable. Continue?</string>
+    <string name="home_action_restart_media_running">Restarting media tool…</string>
+    <string name="home_action_restart_media_success">Media tool restarted</string>
+    <string name="home_action_restart_media_failed">Media tool restart failed</string>
+    <string name="home_action_restart_media_root_required">Root required, unavailable now</string>
+
+    <!-- Logs -->
+    <string name="logs_title">Logs</string>
+    <string name="logs_filter">Filter</string>
+    <string name="logs_filter_keyword">Filter Keyword</string>
+    <string name="logs_enter_keyword">Enter keyword…</string>
+    <string name="logs_no_match">No Matching Logs</string>
+    <string name="logs_no_match_desc">Try other keywords</string>
+    <string name="logs_total_logs">%1$d logs total</string>
+    <string name="logs_copy_all">Copy All</string>
+    <string name="logs_copied">Copied</string>
+    <string name="logs_copied_line">Line copied</string>
+    <string name="logs_refresh">Refresh</string>
+    <string name="logs_clear">Clear</string>
+    <string name="logs_empty">No logs yet</string>
+    <string name="logs_loading">Loading logs…</string>
+    <string name="logs_export">Export</string>
+    <string name="logs_exported">Log exported</string>
+    <string name="logs_export_failed">Export failed</string>
+
+    <!-- File Monitor -->
+    <string name="file_monitor_title">File Monitor</string>
+    <string name="file_monitor_filter">Filter</string>
+    <string name="file_monitor_filter_by_package">Filter by package</string>
+    <string name="file_monitor_search_hint">Search app, package, or path</string>
+    <string name="file_monitor_filter_by_operation">Filter by operation</string>
+    <string name="file_monitor_all_operations">All</string>
+    <string name="file_monitor_op_write">Write</string>
+    <string name="file_monitor_op_create">Create</string>
+    <string name="file_monitor_op_mkdir">Mkdir</string>
+    <string name="file_monitor_op_delete">Delete</string>
+    <string name="file_monitor_op_rename">Rename</string>
+    <string name="file_monitor_refresh">Refresh</string>
+    <string name="file_monitor_expand">Expand full path</string>
+    <string name="file_monitor_collapse">Collapse path</string>
+    <string name="file_monitor_clear">Clear</string>
+    <string name="file_monitor_clear_confirm">Clear all monitor records?</string>
+    <string name="file_monitor_empty">No records yet</string>
+    <string name="file_monitor_loading">Loading records…</string>
+    <string name="file_monitor_result_success">Success</string>
+    <string name="file_monitor_result_failed">Failed</string>
+    <string name="file_monitor_action_open">open</string>
+    <string name="file_monitor_action_create">create</string>
+    <string name="file_monitor_action_delete">delete</string>
+    <string name="file_monitor_action_rename">rename</string>
+    <string name="file_monitor_source_filesystem_action">Via filesystem %1$s</string>
+    <string name="file_monitor_source_media_action">Via media tool %1$s</string>
+    <string name="file_monitor_source_download_action">Via download tool %1$s</string>
+    <string name="file_monitor_source_mtp_action">Via MTP tool %1$s</string>
+    <string name="file_monitor_source_system_writer_action">Via system writer tool %1$s</string>
+
+    <!-- Apps -->
+    <string name="apps_title">App List</string>
+    <string name="apps_search">Search apps…</string>
+    <string name="apps_filter">Filter</string>
+    <string name="apps_filter_options">Filter Options</string>
+    <string name="apps_sort_by_name">Sort by Name</string>
+    <string name="apps_sort_by_install_time">Sort by Install Time</string>
+    <string name="apps_switch_user">Switch User</string>
+    <string name="apps_show_system_apps">Show System Apps</string>
+    <string name="apps_redirected_first">Redirected First</string>
+    <string name="apps_redirected">Redirected</string>
+    <string name="apps_not_redirected">Not Redirected</string>
+    <string name="apps_system">SYSTEM</string>
+    <string name="apps_tag_redirected">REDIRECTED</string>
+    <string name="apps_no_apps">No apps found</string>
+    <string name="apps_loading">Loading…</string>
+    <string name="apps_refresh">Refresh</string>
+    <string name="apps_templates">Templates</string>
+    <string name="apps_long_press_actions">App actions</string>
+    <string name="apps_apply_template">Choose template</string>
+    <string name="apps_save_as_template">Save current config as template</string>
+    <string name="apps_template_empty">No templates yet</string>
+    <string name="apps_template_apply_mode_title">Apply template</string>
+    <string name="apps_template_apply_mode_summary">Choose how to apply “%1$s” to “%2$s”. This will enable the redirect switch.</string>
+    <string name="apps_template_apply_merge">Merge</string>
+    <string name="apps_template_apply_replace">Replace</string>
+    <string name="apps_template_shared_uid_confirm_title">Sync shared UID apps?</string>
+    <string name="apps_template_shared_uid_confirm_summary">This app shares UID with the following apps. The template will be applied to them too; cancel means no template will be applied:\n%1$s</string>
+    <string name="apps_template_apply_success">Template applied</string>
+    <string name="apps_template_save_failed_empty">Current app has no rules to save</string>
+    <string name="apps_selected">Selected</string>
+    <string name="apps_selected_count">%1$d selected</string>
+    <string name="apps_select_all">Select all</string>
+    <string name="apps_invert_selection">Invert selection</string>
+    <string name="apps_restore_rules">Restore rules</string>
+    <string name="apps_restore_rules_title">Restore rules</string>
+    <string name="apps_restore_rules_summary">Remove all allowed paths and path mappings from selected apps. Redirect switches will stay unchanged.</string>
+    <string name="apps_restore_rules_success">Rules restored</string>
+    <string name="apps_template_restore">Restore</string>
+
+    <!-- Templates -->
+    <string name="templates_title">Templates</string>
+    <string name="templates_add">Add Template</string>
+    <string name="templates_edit">Edit Template</string>
+    <string name="templates_delete">Delete Template</string>
+    <string name="templates_delete_confirm">Delete template “%1$s”?</string>
+    <string name="templates_name">Template name</string>
+    <string name="templates_name_empty">Template name cannot be empty</string>
+    <string name="templates_empty">No templates yet</string>
+    <string name="templates_save_from_app_title">Save as template</string>
+    <string name="templates_saved">Template saved</string>
+
+    <!-- Rule Config -->
+    <string name="rule_config_title">Allowed Real Paths</string>
+    <string name="rule_config_enable_redirect">Enable Redirect</string>
+    <string name="rule_config_redirect_enabled">Redirect enabled</string>
+    <string name="rule_config_redirect_disabled">Redirect disabled</string>
+    <string name="rule_config_allowed_paths">Allowed Paths</string>
+    <string name="rule_config_path_mappings">Path Mappings</string>
+    <string name="rule_config_add_path">Add Path</string>
+    <string name="rule_config_edit_path">Edit Path</string>
+    <string name="rule_config_delete_path">Delete Path</string>
+    <string name="rule_config_delete_confirm">Delete this path?</string>
+    <string name="rule_config_real_path">Real Path</string>
+    <string name="rule_config_add_mapping">Add Mapping</string>
+    <string name="rule_config_edit_mapping">Edit Mapping</string>
+    <string name="rule_config_delete_mapping">Delete Mapping</string>
+    <string name="rule_config_delete_mapping_confirm">Delete this mapping?</string>
+    <string name="rule_config_mapping_request_path">Request Path</string>
+    <string name="rule_config_mapping_final_path">Final Path</string>
+    <string name="rule_config_no_paths">No allowed paths configured</string>
+    <string name="rule_config_no_mappings">No mappings configured</string>
+    <string name="rule_config_restart_hint">Changes will automatically stop the target app to take effect</string>
+    <string name="rule_config_shared_uid_title">Shared UID</string>
+    <string name="rule_config_shared_uid_hint">This app shares UID with the following apps. Enabling or configuring any will affect all:</string>
+    <string name="rule_config_save_failed">Save failed</string>
+    <string name="rule_config_error_empty">Path cannot be empty</string>
+    <string name="rule_config_error_absolute">Path must be relative (no leading /)</string>
+    <string name="rule_config_error_traversal">Path cannot contain ..</string>
+    <string name="rule_config_error_same_paths">Current and target paths must be different</string>
+    <string name="rule_config_error_android_prefix">Path cannot be under Android/data</string>
+    <string name="rule_config_error_mapping_wildcard">Mapping paths do not support * or ? wildcards</string>
+    <string name="rule_config_error_mapping_exclusion">Mapping paths do not support ! exclusion prefix</string>
+    <string name="rule_config_allowed_paths_rule_hint">Supported wildcard symbols: * ?\n* matches any number of characters.\n? matches one character.\n! is the exclusion prefix.\nOnly real path access supports these rules.</string>
+    <string name="rule_config_allowed_paths_rule_hint_desc">View rule help</string>
+    <string name="rule_config_browse">Browse</string>
+    <string name="rule_config_browser_use_current">Use current directory</string>
+    <string name="rule_config_browser_root">Root</string>
+    <string name="rule_config_browser_subdirs">Subdirectories</string>
+    <string name="rule_config_browser_load_failed">Failed to load directory</string>
+    <string name="rule_config_browser_invalid_path">Invalid path</string>
+    <string name="rule_config_browser_title">Select Directory</string>
+    <string name="rule_config_browser_empty">Empty directory</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_monitor">File Monitor</string>
+    <string name="settings_floating_bottom_bar">Floating bottom bar</string>
+    <string name="settings_floating_bottom_bar_summary">Use a floating bottom bar that overlays page content.</string>
+    <string name="settings_floating_bottom_bar_blur">Bottom bar blur</string>
+    <string name="settings_floating_bottom_bar_blur_summary">Enable blur effect only for the floating bottom bar.</string>
+    <string name="settings_monitor_all_apps">File Monitor Switch</string>
+    <string name="settings_monitor_all_apps_desc">When enabled, monitor media.module and apps with redirect enabled</string>
+    <string name="settings_fuse_fixer">FuseFixer</string>
+    <string name="settings_fuse_fixer_summary">Normalize hidden Unicode marks in MediaProvider FUSE path checks.</string>
+    <string name="settings_tools">Tools</string>
+    <string name="settings_logs_entry_desc">View module running logs</string>
+    <string name="settings_backup_restore">Backup &amp; Restore</string>
+    <string name="settings_backup_title">Backup package configs and templates</string>
+    <string name="settings_backup_desc">Export ZIP via system file picker and refresh local backup cache: %1$s</string>
+    <string name="settings_restore_title">Restore package configs and templates</string>
+    <string name="settings_restore_desc">Load package config JSON from %1$s</string>
+    <string name="settings_backup_restore_root_required">Root required, unavailable now</string>
+    <string name="settings_root_checking">Checking Root status…</string>
+    <string name="settings_action_running">Processing…</string>
+    <string name="settings_backup_success">Backup completed</string>
+    <string name="settings_backup_failed">Backup failed</string>
+    <string name="settings_restore_success">Restore completed</string>
+    <string name="settings_restore_failed">Restore failed</string>
+    <string name="settings_backup_success_with_count">Backup completed (%1$d apps)</string>
+    <string name="settings_backup_failed_with_count">Backup failed (%1$d apps collected)</string>
+    <string name="settings_restore_success_with_count">Restore completed (%1$d apps)</string>
+    <string name="settings_restore_failed_with_count">Restore not fully applied (%1$d apps restored)</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_backup_restore_name">Backup &amp; Restore Status</string>
+    <string name="notification_channel_backup_restore_desc">Shows backup and restore results for package configs</string>
+    <string name="notification_backup_success_title">Backup succeeded</string>
+    <string name="notification_backup_failed_title">Backup failed</string>
+    <string name="notification_restore_success_title">Restore succeeded</string>
+    <string name="notification_restore_failed_title">Restore failed</string>
+    <string name="notification_backup_success_text">Package configs were exported as ZIP backup (%1$d apps)</string>
+    <string name="notification_backup_failed_text">ZIP backup export failed (%1$d apps collected)</string>
+    <string name="notification_restore_success_text">Package configs restored (%1$d apps)</string>
+    <string name="notification_restore_failed_text">Restore not fully applied: %1$d apps restored</string>
+    <string name="settings_update">Check for Updates</string>
+    <string name="settings_update_check_on_launch">Check on launch</string>
+    <string name="settings_update_check_now">Check now</string>
+    <string name="settings_update_checking">Checking…</string>
+    <string name="settings_update_latest">Already up to date</string>
+    <string name="settings_update_available">New version available: v%1$s</string>
+    <string name="settings_update_download">Download</string>
+    <string name="settings_update_ignore">Ignore this update</string>
+    <string name="settings_update_failed">Update check failed</string>
+    <string name="settings_update_toast">New version available: v%1$s</string>
+    <string name="settings_update_release_notes">Changelog</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version_info">Version</string>
+    <string name="settings_open_source_licenses">Open Source Licenses</string>
+    <string name="settings_open_source_licenses_desc">View third-party libraries used in this app</string>
+    <string name="settings_android_libraries">Android Libraries</string>
+    <string name="settings_native_libraries">Native Libraries</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_logs">Logs</string>
+    <string name="nav_monitor">Monitor</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Home - Device Info -->
+    <string name="home_device_info">Device Info</string>
+    <string name="home_android_version">Android Version</string>
+    <string name="home_sdk_level">API Level</string>
+    <string name="home_kernel_version">Kernel</string>
+    <string name="home_selinux_status">SELinux</string>
+    <string name="home_device_model">Device</string>
+    <string name="home_system_arch">Architecture</string>
+
+    <!-- Common -->
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_close">Close</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_add">Add</string>
+    <string name="common_save">Save</string>
+    <string name="common_search">Search</string>
+    <string name="common_filter">Filter</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_error">Error</string>
+    <string name="common_success">Success</string>
+
+    <!-- Permission -->
+    <string name="permission_title">Permission Required</string>
+    <string name="permission_description">This app requires the following permissions to function properly</string>
+    <string name="permission_root">Root Access</string>
+    <string name="permission_root_desc">Required for redirect and config management</string>
+    <string name="permission_notification">Notification</string>
+    <string name="permission_notification_desc">Required for status notifications</string>
+    <string name="permission_grant">Grant</string>
+    <string name="permission_granted">Granted</string>
+    <string name="permission_checking">Checking…</string>
+    <string name="permission_retry">Retry</string>
+</resources>
