@@ -14,6 +14,11 @@ fn main() {
     println!("cargo:rustc-link-lib=log");
     println!("cargo:rustc-link-lib=android");
 
+    if env::var("CARGO_CFG_CLIPPY").is_ok() {
+        println!("cargo:warning=srx_core: LSPlant bridge skipped under clippy");
+        return;
+    }
+
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let is_debug_build = env::var("SRX_BUILD_DEBUG").is_ok();
     build_lsplant_bridge(&target_arch, is_debug_build);
