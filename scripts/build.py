@@ -26,6 +26,7 @@ MODULE_UPDATE_JSON = "https://raw.githubusercontent.com/Kindness-Kismet/Storage-
 MODULE_RELEASE_BASE_URL = "https://raw.githubusercontent.com/Kindness-Kismet/Storage-redirection-X-Public/main"
 MODULE_CHANGELOG_URL = "https://raw.githubusercontent.com/Kindness-Kismet/Storage-redirection-X-Public/main/CHANGELOG.md"
 CORE_SO_NAME = "libsrx_core.so"
+DAEMON_BIN_NAME = "srx_daemon"
 ANDROID_LINK_API_LEVEL = "29"
 APK_OUTPUT_DIR = Path("build/apk")
 MODULE_OUTPUT_DIR = Path("build/zygisk")
@@ -220,7 +221,7 @@ def resolve_ndk(console: Console, project_root: Path, ndk_arg: str | None) -> Pa
 
 
 def build_rust_module(console: Console, project_root: Path, rust_root: Path, libs_output_dir: Path, ndk_path: Path, abi: str, debug: bool) -> None:
-    console.info(f"build Rust module abi={abi} so={CORE_SO_NAME}")
+    console.info(f"build Rust module abi={abi} so={CORE_SO_NAME} daemon={DAEMON_BIN_NAME}")
     target = resolve_rust_target(abi)
     toolchain_dir = ndk_path / "toolchains" / "llvm" / "prebuilt" / ndk_prebuilt_dir() / "bin"
     clang_name = f"{target}{ANDROID_LINK_API_LEVEL}-clang"
@@ -252,31 +253,38 @@ def build_rust_module(console: Console, project_root: Path, rust_root: Path, lib
     built_so = project_root / "target" / target / "release" / CORE_SO_NAME
     if not built_so.exists():
         fail(f"Rust output not found: {built_so}")
+    built_daemon = project_root / "target" / target / "release" / DAEMON_BIN_NAME
+    if os.name == "nt" and not built_daemon.exists():
+        built_daemon = built_daemon.with_suffix(".exe")
+    if not built_daemon.exists():
+        fail(f"Rust daemon output not found: {built_daemon}")
     abi_output = libs_output_dir / abi
     abi_output.mkdir(parents=True, exist_ok=True)
     shutil.copy2(built_so, abi_output / CORE_SO_NAME)
-    console.ok(f"Rust build done abi={abi} so={CORE_SO_NAME}")
+    shutil.copy2(built_daemon, abi_output / DAEMON_BIN_NAME)
+    console.ok(f"Rust build done abi={abi} so={CORE_SO_NAME} daemon={DAEMON_BIN_NAME}")
 
 
 def strip_and_hash(console: Console, libs_output_dir: Path, abi: str, ndk_path: Path, debug: bool) -> None:
-    so_file = libs_output_dir / abi / CORE_SO_NAME
-    if not so_file.exists():
-        console.info(f"skip missing abi={abi} so={CORE_SO_NAME}")
-        return
-    if debug:
-        console.info(f"skip strip (debug) abi={abi} so={CORE_SO_NAME}")
-    else:
-        strip_name = "llvm-strip.exe" if os.name == "nt" else "llvm-strip"
-        llvm_strip = ndk_path / "toolchains" / "llvm" / "prebuilt" / ndk_prebuilt_dir() / "bin" / strip_name
-        if llvm_strip.exists():
-            result = run_process(console, llvm_strip, ["--strip-all", str(so_file)])
+    outputs = ((CORE_SO_NAME, f"{CORE_SO_NAME}.sha256"), (DAEMON_BIN_NAME, f"{DAEMON_BIN_NAME}.sha256"))
+    strip_name = "llvm-strip.exe" if os.name == "nt" else "llvm-strip"
+    llvm_strip = ndk_path / "toolchains" / "llvm" / "prebuilt" / ndk_prebuilt_dir() / "bin" / strip_name
+    for output_name, hash_name in outputs:
+        output_file = libs_output_dir / abi / output_name
+        if not output_file.exists():
+            console.info(f"skip missing abi={abi} output={output_name}")
+            continue
+        if debug:
+            console.info(f"skip strip (debug) abi={abi} output={output_name}")
+        elif llvm_strip.exists():
+            result = run_process(console, llvm_strip, ["--strip-all", str(output_file)])
             if result.returncode == 0:
-                console.ok(f"stripped abi={abi} so={CORE_SO_NAME}")
+                console.ok(f"stripped abi={abi} output={output_name}")
             else:
-                console.info(f"strip failed abi={abi} so={CORE_SO_NAME}")
-    digest = hashlib.sha256(so_file.read_bytes()).hexdigest()
-    so_file.with_suffix(".so.sha256").write_text(digest, encoding="utf-8")
-    console.ok(f"sha256 abi={abi} so={CORE_SO_NAME} hash={digest[:16]}...")
+                console.info(f"strip failed abi={abi} output={output_name}")
+        digest = hashlib.sha256(output_file.read_bytes()).hexdigest()
+        output_file.with_name(hash_name).write_text(digest, encoding="utf-8")
+        console.ok(f"sha256 abi={abi} output={output_name} hash={digest[:16]}...")
 
 
 def copy_dir_recursive(source: Path, destination: Path) -> None:
@@ -285,6 +293,18 @@ def copy_dir_recursive(source: Path, destination: Path) -> None:
     if destination.exists():
         shutil.rmtree(destination)
     shutil.copytree(source, destination)
+
+
+def normalize_module_text_files(module_dir: Path) -> None:
+    text_names = {"module.prop", "module_version.txt", "sepolicy.rule"}
+    text_suffixes = {".sh", ".rule", ".txt", ".prop"}
+    for path in module_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.name not in text_names and path.suffix not in text_suffixes:
+            continue
+        content = path.read_text(encoding="utf-8")
+        path.write_text(content.replace("\r\n", "\n").replace("\r", "\n"), encoding="utf-8", newline="\n")
 
 
 def package_module(console: Console, project_root: Path, module_assets_root: Path, libs_output_dir: Path, version: VersionInfo, abis: list[str]) -> None:
@@ -318,15 +338,28 @@ def package_module(console: Console, project_root: Path, module_assets_root: Pat
 
     zygisk_dir = temp_dir / "zygisk"
     zygisk_dir.mkdir(parents=True, exist_ok=True)
+    bin_dir = temp_dir / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
     for abi in abis:
         core_so = libs_output_dir / abi / CORE_SO_NAME
-        core_sha = core_so.with_suffix(".so.sha256")
+        core_sha = core_so.with_name(core_so.name + ".sha256")
+        daemon_bin = libs_output_dir / abi / DAEMON_BIN_NAME
+        daemon_sha = daemon_bin.with_name(daemon_bin.name + ".sha256")
         if not core_so.exists():
             fail(f"missing {abi} core output: {core_so}")
+        if not daemon_bin.exists():
+            fail(f"missing {abi} daemon output: {daemon_bin}")
         shutil.copy2(core_so, zygisk_dir / f"{abi}.so")
         if core_sha.exists():
             shutil.copy2(core_sha, zygisk_dir / f"{abi}.so.sha256")
-        console.ok(f"added core lib abi={abi}")
+        abi_bin_dir = bin_dir / abi
+        abi_bin_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(daemon_bin, abi_bin_dir / DAEMON_BIN_NAME)
+        if daemon_sha.exists():
+            shutil.copy2(daemon_sha, abi_bin_dir / f"{DAEMON_BIN_NAME}.sha256")
+        console.ok(f"added native outputs abi={abi}")
+
+    normalize_module_text_files(temp_dir)
 
     suffix = abis[0] if len(abis) == 1 else "zygisk"
     zip_name = f"{APP_NAME}_v{version.name}-{suffix}.zip"

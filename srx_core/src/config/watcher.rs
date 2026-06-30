@@ -7,10 +7,12 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering};
 
 const EVENT_MASK: u32 = IN_CREATE | IN_DELETE | IN_CLOSE_WRITE | IN_MOVED_FROM | IN_MOVED_TO;
+#[allow(dead_code)]
 const FALLBACK_POLL_INTERVAL_MS: i64 = 500;
 
 static INOTIFY_FD: AtomicI32 = AtomicI32::new(-1);
 static FALLBACK_POLL_ENABLED: AtomicBool = AtomicBool::new(false);
+#[allow(dead_code)]
 static LAST_FALLBACK_POLL_MS: AtomicI64 = AtomicI64::new(0);
 
 // 初始化 inotify 并添加监听，返回 fd（用于 exempt）
@@ -41,7 +43,9 @@ pub fn init(config_dir: &str) -> i32 {
     fd
 }
 
-// 非阻塞读取 inotify 事件，仅在收到 .json 配置事件时返回 true
+const HOT_RELOAD_TRIGGER_FILE: &str = ".hot_reload";
+
+// 非阻塞读取 inotify 事件，仅在收到配置或热更新触发事件时返回 true
 pub fn poll_changed() -> bool {
     let fd = INOTIFY_FD.load(Ordering::Acquire);
     if fd < 0 {
@@ -70,10 +74,12 @@ pub fn poll_changed() -> bool {
 }
 
 // 综合 inotify 与兜底轮询，决定是否执行一次 reload_if_changed
+#[allow(dead_code)]
 pub fn should_reload() -> bool {
     poll_changed() || should_fallback_poll()
 }
 
+#[allow(dead_code)]
 fn should_fallback_poll() -> bool {
     if !FALLBACK_POLL_ENABLED.load(Ordering::Acquire) {
         return false;
@@ -98,7 +104,7 @@ fn add_watch(fd: c_int, path: &str) -> bool {
     wd >= 0
 }
 
-// 仅处理非目录的 .json 文件事件
+// 仅处理非目录的 .json 配置事件或 APP 主动写入的热更新触发文件
 fn is_config_event(event: &inotify_event) -> bool {
     if (event.mask & libc::IN_ISDIR) != 0 {
         return false;
@@ -107,7 +113,8 @@ fn is_config_event(event: &inotify_event) -> bool {
         let name_ptr = unsafe { (event as *const inotify_event).add(1) as *const u8 };
         let name_slice = unsafe { std::slice::from_raw_parts(name_ptr, event.len as usize) };
         if let Ok(name) = std::str::from_utf8(name_slice) {
-            return name.trim_end_matches('\0').ends_with(".json");
+            let clean_name = name.trim_end_matches('\0');
+            return clean_name.ends_with(".json") || clean_name == HOT_RELOAD_TRIGGER_FILE;
         }
     }
     true

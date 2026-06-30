@@ -4,6 +4,7 @@ use super::super::path as path_utils;
 use super::super::runtime;
 use super::super::stats::InterceptHub;
 use super::super::util::c_str_to_string;
+use crate::platform::fs;
 use crate::redirect::{process_redirect_path, record_redirect_hit};
 use libc::{AT_FDCWD, c_char, c_int, c_void, mode_t};
 use std::ffi::CString;
@@ -189,10 +190,12 @@ where
     let redirect_result = process_redirect_path(hub, &path_text);
     diagnostic::log_diag_redirect_decision(hub, op_name, &path_text, &redirect_result);
 
-    let result = if redirect_result.is_redirect() {
-        record_redirect_hit(hub, op_name, &path_text, &redirect_result.new_path);
-        runtime::ensure_redirect_parent_dirs(&redirect_result.new_path, mode);
-        if let Ok(c_path) = CString::new(redirect_result.new_path) {
+    let mut redirected_path = String::new();
+    let mut result = if redirect_result.is_redirect() {
+        redirected_path = redirect_result.new_path.clone();
+        record_redirect_hit(hub, op_name, &path_text, &redirected_path);
+        runtime::ensure_redirect_parent_dirs(&redirected_path, mode);
+        if let Ok(c_path) = CString::new(redirected_path.as_str()) {
             call_original(c_path.as_ptr())
         } else {
             call_original(pathname)
@@ -200,11 +203,22 @@ where
     } else {
         call_original(pathname)
     };
-    let error_no = if result < 0 {
+    let mut error_no = if result < 0 {
         unsafe { *libc::__errno() }
     } else {
         0
     };
+    normalize_existing_redirect_dir_result(&redirected_path, &mut result, &mut error_no);
+    if !redirected_path.is_empty() {
+        log::info!(
+            "write op={} from={} to={} ret={} errno={}",
+            op_name,
+            path_text,
+            redirected_path,
+            result,
+            error_no
+        );
+    }
     monitor::record_mkdir_result(hub, op_name, &path_text, result, error_no);
     result
 }
@@ -396,10 +410,12 @@ where
     let redirect_result = process_redirect_path(hub, &path_text);
     diagnostic::log_diag_redirect_decision(hub, op_name, &path_text, &redirect_result);
 
-    let result = if redirect_result.is_redirect() {
-        record_redirect_hit(hub, op_name, &path_text, &redirect_result.new_path);
-        runtime::ensure_redirect_parent_dirs(&redirect_result.new_path, mode);
-        if let Ok(c_path) = CString::new(redirect_result.new_path) {
+    let mut redirected_path = String::new();
+    let mut result = if redirect_result.is_redirect() {
+        redirected_path = redirect_result.new_path.clone();
+        record_redirect_hit(hub, op_name, &path_text, &redirected_path);
+        runtime::ensure_redirect_parent_dirs(&redirected_path, mode);
+        if let Ok(c_path) = CString::new(redirected_path.as_str()) {
             call_original(c_path.as_ptr())
         } else {
             call_original(pathname)
@@ -407,11 +423,40 @@ where
     } else {
         call_original(pathname)
     };
-    let error_no = if result < 0 {
+    let mut error_no = if result < 0 {
         unsafe { *libc::__errno() }
     } else {
         0
     };
+    normalize_existing_redirect_dir_result(&redirected_path, &mut result, &mut error_no);
+    if !redirected_path.is_empty() {
+        log::info!(
+            "write op={} from={} to={} ret={} errno={}",
+            op_name,
+            path_text,
+            redirected_path,
+            result,
+            error_no
+        );
+    }
     monitor::record_mkdir_result(hub, op_name, &path_text, result, error_no);
     result
+}
+
+fn normalize_existing_redirect_dir_result(
+    redirected_path: &str,
+    result: &mut c_int,
+    error_no: &mut i32,
+) {
+    if redirected_path.is_empty() || *result >= 0 || *error_no != libc::EEXIST {
+        return;
+    }
+    if !fs::is_directory(redirected_path) {
+        return;
+    }
+    *result = 0;
+    *error_no = 0;
+    unsafe {
+        *libc::__errno() = 0;
+    }
 }

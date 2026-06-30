@@ -115,7 +115,12 @@ sync_uninstalled_app_configs() {
     fi
   done
 
-  force_stop_packages_from_file "$changed_file"
+  if [ -s "$changed_file" ]; then
+    while IFS= read -r package_name; do
+      [ -n "$package_name" ] || continue
+      log -p i -t Boot "disabled config for uninstalled package, daemon will reconcile: pkg=$package_name"
+    done < "$changed_file"
+  fi
   rm -f "$changed_file"
 }
 
@@ -170,13 +175,13 @@ get_state_signature() {
   echo "$state_line" | awk -F'|' '{print $2 "|" $3}'
 }
 
-should_force_stop_by_state() {
+should_hot_reload_by_state() {
   old_line="$1"
   new_line="$2"
   old_effective=$(get_state_effective "$old_line")
   new_effective=$(get_state_effective "$new_line")
 
-  # 生效配置仍为生效配置时，仅在内容变化后重启应用。
+  # 生效配置仍为生效配置时，仅在内容变化后触发热更新。
   if [ "$old_effective" -eq 1 ] && [ "$new_effective" -eq 1 ]; then
     old_sig=$(get_state_signature "$old_line")
     new_sig=$(get_state_signature "$new_line")
@@ -184,11 +189,11 @@ should_force_stop_by_state() {
     return $?
   fi
 
-  # 生效状态发生切换（启用/禁用/删除）时重启应用。
+  # 生效状态发生切换（启用/禁用/删除）时触发热更新。
   if [ "$old_effective" -eq 1 ] || [ "$new_effective" -eq 1 ]; then
     return 0
   fi
-  # 非生效配置变更不触发重启，避免无意义杀进程。
+  # 非生效配置变更不触发热更新，避免无意义 reconcile。
   return 1
 }
 
@@ -202,39 +207,12 @@ get_packages_by_uid() {
   awk -F':' -v uid="$target_uid" '$2 == uid { print $1 }' "$SYSTEM_WRITER_UIDS_FILE" 2>/dev/null
 }
 
-get_user_ids() {
-  user_ids=$(cmd user list 2>/dev/null | sed -n 's/.*{\([0-9][0-9]*\):.*/\1/p' | sort -u)
-  if [ -z "$user_ids" ]; then
-    echo "0"
-    return 0
-  fi
-  echo "$user_ids"
-}
-
-force_stop_package_all_users() {
-  package_name="$1"
-  user_ids=$(get_user_ids)
-  for user_id in $user_ids; do
-    am force-stop --user "$user_id" "$package_name" >/dev/null 2>&1
-  done
-}
-
-force_stop_packages_from_file() {
-  package_file="$1"
-  [ -s "$package_file" ] || return 0
-  sort -u -o "$package_file" "$package_file" 2>/dev/null
-  while IFS= read -r package_name; do
-    [ -n "$package_name" ] || continue
-    force_stop_package_all_users "$package_name"
-  done < "$package_file"
-}
-
 handle_config_changes() {
   changed_packages="$1"
   old_state_file="$2"
   new_state_file="$3"
-  kill_list_file="$LOGS_DIR/.config_kill_packages.tmp"
-  : > "$kill_list_file"
+  hot_reload_file="$LOGS_DIR/.config_hot_reload_packages.tmp"
+  : > "$hot_reload_file"
 
   # 变更处理前刷新一次 UID 映射，避免共享 UID 关系过期。
   refresh_uid_map
@@ -245,9 +223,9 @@ handle_config_changes() {
     old_line=$(get_state_line "$old_state_file" "$package_name")
     new_line=$(get_state_line "$new_state_file" "$package_name")
     should_kill_source=0
-    if should_force_stop_by_state "$old_line" "$new_line"; then
+    if should_hot_reload_by_state "$old_line" "$new_line"; then
       should_kill_source=1
-      echo "$package_name" >> "$kill_list_file"
+      echo "$package_name" >> "$hot_reload_file"
     fi
 
     uid=$(get_uid_by_package "$package_name")
@@ -266,9 +244,9 @@ handle_config_changes() {
         continue
       fi
 
-      # 同 UID 配置保持生效时，来源包生效变更也会触发重启，避免进程状态不一致。
-      if should_force_stop_by_state "$shared_old_line" "$shared_new_line"; then
-        echo "$shared_package" >> "$kill_list_file"
+      # 同 UID 配置保持生效时，来源包生效变更也会触发热更新，避免进程状态不一致。
+      if should_hot_reload_by_state "$shared_old_line" "$shared_new_line"; then
+        echo "$shared_package" >> "$hot_reload_file"
         continue
       fi
 
@@ -276,24 +254,24 @@ handle_config_changes() {
         shared_old_effective=$(get_state_effective "$shared_old_line")
         shared_new_effective=$(get_state_effective "$shared_new_line")
         if [ "$shared_old_effective" -eq 1 ] || [ "$shared_new_effective" -eq 1 ]; then
-          echo "$shared_package" >> "$kill_list_file"
+          echo "$shared_package" >> "$hot_reload_file"
         fi
       fi
     done
   done
 
-  if [ ! -s "$kill_list_file" ]; then
-    rm -f "$kill_list_file"
+  if [ ! -s "$hot_reload_file" ]; then
+    rm -f "$hot_reload_file"
     return 0
   fi
 
-  sort -u -o "$kill_list_file" "$kill_list_file" 2>/dev/null
+  sort -u -o "$hot_reload_file" "$hot_reload_file" 2>/dev/null
   while IFS= read -r package_name; do
     [ -n "$package_name" ] || continue
-    log -p i -t Boot "auto force-stop after config change: pkg=$package_name"
-  done < "$kill_list_file"
-  force_stop_packages_from_file "$kill_list_file"
-  rm -f "$kill_list_file"
+    log -p i -t Boot "config hot reload queued: pkg=$package_name"
+  done < "$hot_reload_file"
+  ensure_srx_daemon_running
+  rm -f "$hot_reload_file"
 }
 
 start_package_event_collector() {

@@ -1,7 +1,12 @@
 use crate::platform::{self, paths};
+use std::cell::RefCell;
+#[path = "mount/alias.rs"]
 mod alias;
+#[path = "mount/apply.rs"]
 mod apply;
+#[path = "mount/core.rs"]
 mod core;
+#[path = "mount/map.rs"]
 mod map;
 
 pub struct MountPlanner {
@@ -12,6 +17,7 @@ pub struct MountPlanner {
     user_id: i32,
     app_data_dir: String,
     redirect_target: String,
+    mounted_targets: RefCell<Vec<String>>,
 }
 
 #[derive(Copy, Clone)]
@@ -43,6 +49,12 @@ impl MountPlanner {
             user_id,
             app_data_dir: app_data_dir.to_string(),
             redirect_target: paths::normalize(redirect_target),
+            mounted_targets: RefCell::new(Vec::new()),
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn take_mounted_targets(&mut self) -> Vec<String> {
+        std::mem::take(&mut *self.mounted_targets.borrow_mut())
     }
 }

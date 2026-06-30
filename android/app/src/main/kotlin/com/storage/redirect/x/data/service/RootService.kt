@@ -2,6 +2,7 @@ package com.storage.redirect.x.data.service
 
 import android.util.Base64
 import com.storage.redirect.x.util.Logger
+import com.storage.redirect.x.util.Paths
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -35,6 +36,43 @@ object RootService {
             Logger.error("Root check error: ${e.message}")
             false
         }
+    }
+
+    suspend fun triggerHotReload(): Boolean {
+        val command = """
+            MODDIR='${Paths.MODULE_DIR}'
+            CONFIG_DIR='${Paths.CONFIG_DIR}'
+            LOGDIR='${Paths.LOGS_DIR}'
+            PIDFILE="${'$'}LOGDIR/.srx_daemon.pid"
+            mkdir -p "${'$'}CONFIG_DIR/apps" "${'$'}LOGDIR" || exit 1
+            ABI=${'$'}(getprop ro.product.cpu.abi 2>/dev/null)
+            case "${'$'}ABI" in
+              arm64-v8a|aarch64) ABI=arm64-v8a ;;
+              x86_64|x86-64) ABI=x86_64 ;;
+              *) ABI= ;;
+            esac
+            DAEMON="${'$'}MODDIR/bin/${'$'}ABI/srx_daemon"
+            if [ -z "${'$'}ABI" ] || [ ! -x "${'$'}DAEMON" ]; then
+              echo "missing daemon abi=${'$'}ABI path=${'$'}DAEMON" >&2
+              exit 1
+            fi
+            PID=${'$'}(cat "${'$'}PIDFILE" 2>/dev/null)
+            if [ -z "${'$'}PID" ] || ! kill -0 "${'$'}PID" 2>/dev/null; then
+              "${'$'}DAEMON" >/dev/null 2>&1 &
+              echo ${'$'}! > "${'$'}PIDFILE"
+              chmod 644 "${'$'}PIDFILE" 2>/dev/null
+            fi
+            TRIGGER="${'$'}CONFIG_DIR/.hot_reload"
+            date '+%s%N' > "${'$'}TRIGGER" 2>/dev/null || date '+%s' > "${'$'}TRIGGER" 2>/dev/null || : > "${'$'}TRIGGER"
+            chmod 644 "${'$'}TRIGGER" 2>/dev/null
+        """.trimIndent()
+        val result = runCommand(command)
+        if (!result.isSuccess) {
+            Logger.warn("trigger hot reload failed: exit=${result.exitCode} stderr=${result.stderr}")
+        } else {
+            Logger.info("trigger hot reload ok")
+        }
+        return result.isSuccess
     }
 
     // MediaProvider 一重启，正在运行的重定向 app 里的 FUSE 就失效了，得让它们冷启动重建挂载

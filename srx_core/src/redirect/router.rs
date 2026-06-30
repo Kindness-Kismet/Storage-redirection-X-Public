@@ -1,4 +1,5 @@
 // 路径路由器：重定向决策核心，处理映射、允许列表、排除列表
+use crate::config::SettingsHub;
 use crate::domain::PathMapping;
 use crate::platform::{self, paths};
 use once_cell::sync::Lazy;
@@ -210,6 +211,25 @@ impl PathRouter {
             state.excluded_real_paths.len(),
             state.path_mappings.len()
         );
+    }
+
+    pub fn configure_from_settings(&self, package_name: &str, app_uid: i32) -> bool {
+        self.init();
+        let Some(snapshot) =
+            SettingsHub::instance().get_resolved_user_profile_snapshot(package_name, app_uid)
+        else {
+            self.configure(package_name, app_uid, "", &[], &[], &[]);
+            return false;
+        };
+        self.configure(
+            package_name,
+            app_uid,
+            &snapshot.redirect_target,
+            &snapshot.allowed_real_paths,
+            &snapshot.excluded_real_paths,
+            &snapshot.path_mappings,
+        );
+        true
     }
 
     // 对路径执行重定向决策：映射优先，其次允许列表，最后默认重定向

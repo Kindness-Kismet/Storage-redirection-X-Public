@@ -219,9 +219,9 @@ Config directory on device:
 
 ### Apply Manual Changes
 
-- Manager app saves automatically stop affected apps so changes apply on next launch.
-- When module service is running, manual JSON changes under `config/apps` are watched and effective config changes automatically stop affected packages.
-- If changes are not applied, run module action `Reload Redirect`, restart affected apps, or reboot the device.
+- Manager app saves trigger runtime hot reload; running redirected apps are reconciled without being force-stopped.
+- When module service is running, manual JSON changes under `config/apps` are watched and effective config changes are hot-reloaded by the daemon.
+- If changes are not applied, run module action `Reload Redirect`; restart affected apps or reboot only as a fallback.
 
 ## Configuration Starter Samples
 

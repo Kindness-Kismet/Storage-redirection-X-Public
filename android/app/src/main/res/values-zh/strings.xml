@@ -202,7 +202,7 @@
     <string name="rule_config_mapping_final_path">最终路径</string>
     <string name="rule_config_no_paths">未配置允许路径</string>
     <string name="rule_config_no_mappings">未配置映射</string>
-    <string name="rule_config_restart_hint">修改后将自动停止目标应用以使配置生效</string>
+    <string name="rule_config_restart_hint">修改后会自动热更新，正在运行的目标应用无需重启</string>
     <string name="rule_config_shared_uid_title">共享 UID</string>
     <string name="rule_config_shared_uid_hint">此应用与以下应用共享 UID，开关或配置任一应用将同步影响所有关联应用：</string>
     <string name="rule_config_save_failed">保存失败</string>

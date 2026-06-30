@@ -61,6 +61,58 @@ stop_collector_by_pid_file() {
   rm -f "$pid_file"
 }
 
+detect_primary_abi() {
+  arch=$(getprop ro.product.cpu.abi 2>/dev/null)
+  if [ -z "$arch" ]; then
+    abilist64=$(getprop ro.product.cpu.abilist64 2>/dev/null)
+    if [ -n "$abilist64" ]; then
+      arch=$(echo "$abilist64" | awk -F',' '{print $1}')
+    else
+      abilist=$(getprop ro.product.cpu.abilist 2>/dev/null)
+      if [ -n "$abilist" ]; then
+        arch=$(echo "$abilist" | awk -F',' '{print $1}')
+      else
+        arch=$(uname -m)
+      fi
+    fi
+  fi
+
+  case "$arch" in
+    arm64-v8a|aarch64)
+      echo "arm64-v8a"
+      ;;
+    x86_64|x86-64)
+      echo "x86_64"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
+start_srx_daemon() {
+  abi=$(detect_primary_abi)
+  daemon_bin="$MODDIR/bin/$abi/srx_daemon"
+  if [ -z "$abi" ] || [ ! -x "$daemon_bin" ]; then
+    log -p w -t Boot "skip srx daemon: missing binary abi=$abi path=$daemon_bin"
+    return 0
+  fi
+
+  "$daemon_bin" >/dev/null 2>&1 &
+  daemon_pid="$!"
+  echo "$daemon_pid" > "$DAEMON_PID_FILE"
+  chmod 644 "$DAEMON_PID_FILE"
+  log -p i -t Boot "srx daemon started pid=$daemon_pid abi=$abi"
+}
+
+ensure_srx_daemon_running() {
+  daemon_pid=$(cat "$DAEMON_PID_FILE" 2>/dev/null)
+  if [ -n "$daemon_pid" ] && kill -0 "$daemon_pid" 2>/dev/null; then
+    return 0
+  fi
+  start_srx_daemon
+}
+
 refresh_uid_map() {
   force_refresh="$1"
   now_sec=$(now_epoch_seconds)
@@ -81,11 +133,40 @@ refresh_uid_map() {
   } > "$tmp_uids_file"
 
   entry_count=$(grep -c '^[^#].*:[0-9][0-9]*$' "$tmp_uids_file" 2>/dev/null)
-  if [ "$entry_count" -gt 0 ]; then
+  if [ "$entry_count" -gt 0 ] && is_uid_map_complete "$tmp_uids_file"; then
     mv "$tmp_uids_file" "$SYSTEM_WRITER_UIDS_FILE"
     chmod 644 "$SYSTEM_WRITER_UIDS_FILE"
     echo "$now_sec" > "$UID_MAP_LAST_REFRESH_FILE"
+    return 0
   else
+    log -p w -t Boot "skip uid map refresh: incomplete package list entries=$entry_count"
     rm -f "$tmp_uids_file"
+    return 1
   fi
+}
+
+is_uid_map_complete() {
+  uid_map_file="$1"
+  if ! grep -Eq '^(com\.android\.providers\.media\.module|com\.google\.android\.providers\.media\.module|com\.android\.providers\.media):[0-9]+' "$uid_map_file" 2>/dev/null; then
+    return 1
+  fi
+
+  [ -d "$APPS_CONFIG_DIR" ] || return 0
+  for config_file in "$APPS_CONFIG_DIR"/*.json; do
+    [ -f "$config_file" ] || continue
+    package_name=$(basename "$config_file" .json)
+    [ -n "$package_name" ] || continue
+    [ "$package_name" = "com.storage.redirect.x" ] && continue
+
+    if ! cmd package path "$package_name" >/dev/null 2>&1; then
+      continue
+    fi
+
+    awk -F':' -v target="$package_name" '$1 == target { found = 1 } END { exit found ? 0 : 1 }' "$uid_map_file" || {
+      log -p w -t Boot "uid map missing configured package: pkg=$package_name"
+      return 1
+    }
+  done
+
+  return 0
 }

@@ -4,6 +4,7 @@ mod status_marker;
 mod sys;
 
 use super::companion_request::CompanionMountRequest;
+use crate::daemon_mount::{MountOperation, MountRequest, write_mount_state};
 use crate::mount::MountPlanner;
 use crate::platform::paths::monotonic_ms;
 use crate::platform::unique_fd::UniqueFd;
@@ -396,6 +397,29 @@ fn handle_child_process(request: &CompanionMountRequest, sock: c_int) -> bool {
     } else {
         mount_mgr.apply_sdcard_redirect(&request.allowed_real_paths, &request.path_mappings)
     };
+
+    if is_success {
+        let mounted_targets = mount_mgr.take_mounted_targets();
+        let state_request = MountRequest {
+            operation: MountOperation::Reload,
+            pid: request.pid,
+            uid: request.uid,
+            package_name: request.package_name.clone(),
+            app_data_dir: request.app_data_dir.clone(),
+            redirect_target: request.redirect_target.clone(),
+            allowed_real_paths: request.allowed_real_paths.clone(),
+            path_mappings: request.path_mappings.clone(),
+            is_mapping_mode_only: request.is_mapping_mode_only,
+            config_version: crate::config::SettingsHub::instance().config_version(),
+        };
+        if !write_mount_state(&state_request, &mounted_targets) {
+            log::warn!(
+                "companion mount state save failed pid={} pkg={}",
+                request.pid,
+                request.package_name
+            );
+        }
+    }
 
     let result = if is_success { 0 } else { -1 };
     if !is_success {

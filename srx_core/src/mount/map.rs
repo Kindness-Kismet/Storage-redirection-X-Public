@@ -97,12 +97,14 @@ impl MountPlanner {
                 if !fs::is_directory(&target_source) {
                     let target_data_media =
                         format!("/data/media/{}/{}", self.user_id, target_relative);
-                    if !self.ensure_writable_mapped_directory(&target_data_media, self.app_uid) {
+                    if !self
+                        .ensure_writable_mapped_directory_chain(&target_data_media, self.app_uid)
+                    {
                         log::warn!("map target missing and mkdir failed: {}", target_source);
                         continue;
                     }
                 }
-            } else if !self.ensure_writable_mapped_directory(&target_source, self.app_uid) {
+            } else if !self.ensure_writable_mapped_directory_chain(&target_source, self.app_uid) {
                 log::warn!("target missing and mkdir failed: {}", target_source);
                 continue;
             }

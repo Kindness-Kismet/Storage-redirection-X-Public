@@ -125,11 +125,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             val previous = _uiState.value.isFuseFixerEnabled
             _uiState.update { it.copy(isFuseFixerEnabled = isEnabled, isWorking = true) }
-            val redirectApps = configRepo.load(0).redirectApps
             val isSaved = configRepo.setFuseFixerEnabled(isEnabled)
-            if (isSaved) {
-                RootService.restartMediaProvider(redirectApps)
-            }
             _uiState.update {
                 it.copy(
                     isFuseFixerEnabled = if (isSaved) isEnabled else previous,
