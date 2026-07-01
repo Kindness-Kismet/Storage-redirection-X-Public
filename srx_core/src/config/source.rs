@@ -70,24 +70,17 @@ impl SettingsHub {
         if state.is_loaded {
             return true;
         }
+        let loaded_fingerprint = loaded_state.last_fingerprint;
         self.is_fuse_fixer_enabled
             .store(loaded_state.is_fuse_fixer_enabled, Ordering::Relaxed);
         *state = loaded_state;
-        self.bump_config_version();
+        self.config_version
+            .store(loaded_fingerprint, Ordering::Relaxed);
         true
     }
 
     // 指纹变化时原子替换 SettingsState
     pub fn reload_if_changed(&self) -> bool {
-        self.reload_from_dir(false)
-    }
-
-    // inotify 已经告诉我们磁盘发生变化时，强制重读一次，避免事件早于 mtime/size 指纹稳定。
-    pub fn reload_force(&self) -> bool {
-        self.reload_from_dir(true)
-    }
-
-    fn reload_from_dir(&self, force: bool) -> bool {
         let (config_dir, is_loaded, last_fingerprint) = {
             let state = self.state.lock().unwrap_or_else(|err| err.into_inner());
             (
@@ -98,15 +91,14 @@ impl SettingsHub {
         };
 
         let fingerprint = super::fingerprint::compute_config_fingerprint(&config_dir);
-        if !force && is_loaded && fingerprint == last_fingerprint {
+        if is_loaded && fingerprint == last_fingerprint {
             return true;
         }
 
         log::info!(
-            "config fp change cached={:x} cur={:x}, reload force={}",
+            "config fp change cached={:x} cur={:x}, reload",
             last_fingerprint,
-            fingerprint,
-            force
+            fingerprint
         );
 
         let load_started_ms = paths::monotonic_ms();
@@ -147,10 +139,12 @@ impl SettingsHub {
         if state.config_dir != loaded_state.config_dir {
             return true;
         }
+        let loaded_fingerprint = loaded_state.last_fingerprint;
         self.is_fuse_fixer_enabled
             .store(loaded_state.is_fuse_fixer_enabled, Ordering::Relaxed);
         *state = loaded_state;
-        self.bump_config_version();
+        self.config_version
+            .store(loaded_fingerprint, Ordering::Relaxed);
         true
     }
 }

@@ -11,34 +11,37 @@ case "$1" in
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    abi=$(getprop ro.product.cpu.abi 2>/dev/null)
-    case "$abi" in
-      arm64-v8a|aarch64) abi="arm64-v8a" ;;
-      x86_64|x86-64) abi="x86_64" ;;
-      *) abi="" ;;
-    esac
+    CONFIG_DIR="$MODDIR/config/apps"
+    if [ -d "$CONFIG_DIR" ]; then
+      killed_count=0
+      app_list=""
 
-    daemon_bin="$MODDIR/bin/$abi/srx_daemon"
-    pid_file="$LOGDIR/.srx_daemon.pid"
-    if [ -z "$abi" ] || [ ! -x "$daemon_bin" ]; then
-      echo "error: missing daemon binary"
-      echo "path=$daemon_bin"
-    else
-      old_pid=$(cat "$pid_file" 2>/dev/null)
-      if [ -n "$old_pid" ]; then
-        kill "$old_pid" 2>/dev/null
+      for config_file in "$CONFIG_DIR"/*.json; do
+        if [ -f "$config_file" ]; then
+          package=$(basename "$config_file" .json)
+          pid=$(pidof "$package" 2>/dev/null)
+          if [ -n "$pid" ]; then
+            kill -9 $pid 2>/dev/null
+            killed_count=$((killed_count + 1))
+            app_list="$app_list  ok $package\n"
+          fi
+        fi
+      done
+
+      if [ $killed_count -eq 0 ]; then
+        echo "No redirected app running"
+      else
+        echo "Restarted apps: count=$killed_count"
+        echo ""
+        printf "$app_list"
       fi
-      "$daemon_bin" >/dev/null 2>&1 &
-      new_pid="$!"
-      echo "$new_pid" > "$pid_file"
-      chmod 644 "$pid_file"
-      echo "Hot reload daemon restarted"
-      echo "pid=$new_pid"
+    else
+      echo "error: missing config dir path=$CONFIG_DIR"
     fi
 
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Reload queued"
+    echo "Reload done"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Press any key to close..."

@@ -70,7 +70,6 @@ class ConfigRepository {
                 return@withContext false
             }
         }
-        RootService.triggerHotReload()
         Logger.debug("Config saved")
         true
     }
@@ -102,18 +101,13 @@ class ConfigRepository {
                     return@withContext false
                 }
             }
-            RootService.triggerHotReload()
             Logger.debug("Partial app configs saved")
             true
         }
 
     suspend fun setFuseFixerEnabled(isEnabled: Boolean): Boolean = withContext(Dispatchers.IO) {
         val globalConfig = readGlobalConfig()
-        val isSaved = writeGlobalConfig(globalConfig.isFileMonitorEnabled, isEnabled)
-        if (isSaved) {
-            RootService.triggerHotReload()
-        }
-        isSaved
+        writeGlobalConfig(globalConfig.isFileMonitorEnabled, isEnabled)
     }
 
     suspend fun readFuseFixerEnabled(): Boolean = readGlobalConfig().isFuseFixerEnabled

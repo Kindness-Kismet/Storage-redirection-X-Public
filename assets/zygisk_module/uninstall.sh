@@ -6,7 +6,6 @@ MONITOR_COLLECTOR_PID_FILE="$MODDIR/logs/.monitor_collector.pid"
 MEDIA_STATE_COLLECTOR_PID_FILE="$MODDIR/logs/.media_state_collector.pid"
 APP_STATUS_COLLECTOR_PID_FILE="$MODDIR/logs/.app_status_collector.pid"
 APP_STATUS_SNAPSHOT_PID_FILE="$MODDIR/logs/.app_status_snapshot.pid"
-DAEMON_PID_FILE="$MODDIR/logs/.srx_daemon.pid"
 
 stop_background_process() {
   target_pid="$1"
@@ -35,7 +34,6 @@ stop_collector_by_pid_file() {
 }
 
 stop_collector_by_pid_file "$RUNNING_COLLECTOR_PID_FILE"
-stop_collector_by_pid_file "$DAEMON_PID_FILE"
 stop_collector_by_pid_file "$MONITOR_COLLECTOR_PID_FILE"
 stop_collector_by_pid_file "$MEDIA_STATE_COLLECTOR_PID_FILE"
 stop_collector_by_pid_file "$APP_STATUS_COLLECTOR_PID_FILE"

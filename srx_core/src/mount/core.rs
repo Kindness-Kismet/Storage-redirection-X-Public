@@ -89,50 +89,6 @@ impl MountPlanner {
         self.fix_writable_directory(path, owner_uid)
     }
 
-    pub(super) fn ensure_writable_mapped_directory_chain(
-        &self,
-        path: &str,
-        owner_uid: i32,
-    ) -> bool {
-        log::debug!("mount dir chain prep path={} owner={}", path, owner_uid);
-        if !fs::is_directory(path) && !fs::create_directory(path, owner_uid) {
-            log::warn!("mount dir chain: missing and mkdir failed path={}", path);
-            return false;
-        }
-
-        let normalized = paths::normalize(path);
-        let data_media_root = format!("/data/media/{}", self.user_id);
-        let data_media_prefix = format!("{}/", data_media_root);
-        if !paths::starts_with(&normalized, &data_media_prefix) {
-            return self.fix_writable_directory(&normalized, owner_uid);
-        }
-
-        let relative = &normalized[data_media_prefix.len()..];
-        let segments: Vec<&str> = relative
-            .split('/')
-            .filter(|segment| !segment.is_empty())
-            .collect();
-        if segments.is_empty() {
-            return self.fix_writable_directory(&normalized, owner_uid);
-        }
-
-        let mut current = data_media_root;
-        let mut ok = true;
-        for (index, segment) in segments.iter().enumerate() {
-            current = paths::join(&current, segment);
-            let is_final = index + 1 == segments.len();
-            // Keep standard top-level public folders such as Download/Pictures intact,
-            // but repair custom mapping containers below them so MediaProvider can write.
-            if index == 0 && !is_final {
-                continue;
-            }
-            if fs::is_directory(&current) && !self.fix_writable_directory(&current, owner_uid) {
-                ok = false;
-            }
-        }
-        ok
-    }
-
     pub(super) fn repair_redirect_target_directories(&self, root: &str) {
         let mut repaired_count = 0usize;
         self.repair_redirect_target_directories_inner(root, 0, &mut repaired_count);
@@ -179,11 +135,9 @@ impl MountPlanner {
             return false;
         };
 
-        let mut ok = true;
         if owner_uid >= 0 {
             let ret = unsafe { chown(c_path.as_ptr(), owner_uid as u32, MEDIA_RW_GID) };
             if ret != 0 {
-                ok = false;
                 log::warn!(
                     "mount dir: chown failed errno={} {} path={}",
                     last_errno(),
@@ -195,7 +149,6 @@ impl MountPlanner {
 
         let ret = unsafe { chmod(c_path.as_ptr(), MAPPED_DIR_MODE) };
         if ret != 0 {
-            ok = false;
             log::warn!(
                 "mount dir: chmod failed errno={} {} path={}",
                 last_errno(),
@@ -204,7 +157,7 @@ impl MountPlanner {
             );
         }
 
-        ok
+        true
     }
 
     pub(super) fn to_data_media_backend_path(&self, storage_path: &str) -> String {
@@ -270,8 +223,6 @@ impl MountPlanner {
             return false;
         }
 
-        self.record_mounted_target(target);
-
         let bind_count = BIND_SUCCESS_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
         if should_log_step(bind_count, BIND_SUCCESS_LOG_STEP) {
             log::debug!("bind ok src={} dst={} n={}", source, target, bind_count);
@@ -322,16 +273,6 @@ impl MountPlanner {
             );
         }
         true
-    }
-
-    fn record_mounted_target(&self, target: &str) {
-        if target.is_empty() {
-            return;
-        }
-        let mut targets = self.mounted_targets.borrow_mut();
-        if !targets.iter().any(|item| item == target) {
-            targets.push(target.to_string());
-        }
     }
 }
 

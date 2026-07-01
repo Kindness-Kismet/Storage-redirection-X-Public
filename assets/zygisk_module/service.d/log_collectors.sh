@@ -168,7 +168,6 @@ start_stats_collector() {
 
 start_log_collectors() {
   ensure_log_files
-  stop_collector_by_pid_file "$DAEMON_PID_FILE"
   stop_collector_by_pid_file "$RUNNING_COLLECTOR_PID_FILE"
   stop_collector_by_pid_file "$MONITOR_COLLECTOR_PID_FILE"
   stop_collector_by_pid_file "$MEDIA_STATE_COLLECTOR_PID_FILE"
@@ -177,7 +176,6 @@ start_log_collectors() {
   stop_collector_by_pid_file "$STATS_COLLECTOR_PID_FILE"
   stop_collector_by_pid_file "$CONFIG_EVENT_COLLECTOR_PID_FILE"
   stop_collector_by_pid_file "$PACKAGE_EVENT_COLLECTOR_PID_FILE"
-  start_srx_daemon
   start_running_collector
   start_monitor_collector
   start_media_state_collector

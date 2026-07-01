@@ -219,11 +219,7 @@ pub fn maybe_override_system_writer_caller_by_path(
         return;
     }
 
-    let mut inferred_uid = policy::get_uid_for_package(&inferred);
-    if inferred_uid < ANDROID_APP_UID_START {
-        policy::refresh_shared_uid_cache();
-        inferred_uid = policy::get_uid_for_package(&inferred);
-    }
+    let inferred_uid = policy::get_uid_for_package(&inferred);
     if inferred_uid >= ANDROID_APP_UID_START {
         *effective_caller_uid = inferred_uid;
     }

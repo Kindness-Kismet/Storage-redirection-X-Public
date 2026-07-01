@@ -7,10 +7,6 @@ edition = "2024"
 name = "srx_core"
 crate-type = ["cdylib"]
 
-[[bin]]
-name = "srx_daemon"
-path = "src/bin/srx_daemon.rs"
-
 [dependencies]
 libc = "0.2"
 jni-sys = "0.4"

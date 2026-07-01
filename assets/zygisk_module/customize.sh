@@ -134,8 +134,6 @@ verify_abi() {
   abi="$1"
   so_file="$MODPATH/zygisk/$abi.so"
   sha256_file="$MODPATH/zygisk/$abi.so.sha256"
-  daemon_file="$MODPATH/bin/$abi/srx_daemon"
-  daemon_sha256_file="$MODPATH/bin/$abi/srx_daemon.sha256"
 
   if [ ! -f "$so_file" ]; then
     if [ "$abi" = "$PRIMARY_ARCH" ]; then
@@ -173,43 +171,6 @@ verify_abi() {
   else
     ui_print "-- warn: missing $abi sha256, skip verify"
   fi
-
-  if [ ! -f "$daemon_file" ]; then
-    if [ "$abi" = "$PRIMARY_ARCH" ]; then
-      ui_print "error: missing $abi daemon path=$daemon_file"
-      safe_cleanup_modpath
-      exit 1
-    fi
-    return 0
-  fi
-
-  if [ -f "$daemon_sha256_file" ]; then
-    ui_print "-- verify $abi daemon"
-    expected_sha256=$(cat "$daemon_sha256_file")
-    actual_sha256=$(sha256sum "$daemon_file" 2>/dev/null | awk '{print $1}')
-    if [ -z "$actual_sha256" ] && command -v toybox >/dev/null 2>&1; then
-      actual_sha256=$(toybox sha256sum "$daemon_file" 2>/dev/null | awk '{print $1}')
-    fi
-
-    if [ -z "$actual_sha256" ]; then
-      ui_print "error: cannot compute $abi daemon sha256"
-      safe_cleanup_modpath
-      exit 1
-    fi
-
-    if [ "$expected_sha256" != "$actual_sha256" ]; then
-      ui_print "error: $abi daemon sha256 mismatch"
-      ui_print "expect=$expected_sha256"
-      ui_print "actual=$actual_sha256"
-      safe_cleanup_modpath
-      exit 1
-    fi
-
-    ui_print "-- ok: $abi daemon verified"
-    rm -f "$daemon_sha256_file"
-  else
-    ui_print "-- warn: missing $abi daemon sha256, skip verify"
-  fi
 }
 
 print_progress 40 "verify native libraries"
@@ -226,15 +187,6 @@ for so_file in "$MODPATH"/zygisk/*.so; do
     fi
   fi
 done
-if [ -d "$MODPATH/bin" ]; then
-  for abi_dir in "$MODPATH"/bin/*; do
-    [ -d "$abi_dir" ] || continue
-    abi=$(basename "$abi_dir")
-    if ! contains_abi "$abi"; then
-      rm -rf "$abi_dir"
-    fi
-  done
-fi
 
 print_progress 60 "restore config"
 restore_existing_config
@@ -246,9 +198,6 @@ print_progress 70 "set permissions"
 set_perm_recursive $MODPATH 0 0 0755 0644
 if [ -d "$MODPATH/zygisk" ]; then
   set_perm_recursive $MODPATH/zygisk 0 0 0755 0644
-fi
-if [ -d "$MODPATH/bin" ]; then
-  set_perm_recursive $MODPATH/bin 0 0 0755 0755
 fi
 
 # Magisk/KernelSU 启动脚本需要可执行权限

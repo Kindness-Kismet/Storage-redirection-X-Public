@@ -4,8 +4,6 @@
 #![allow(clippy::missing_const_for_thread_local)]
 
 mod config;
-#[allow(dead_code)]
-mod daemon_mount;
 mod domain;
 mod hook;
 mod java_hook;

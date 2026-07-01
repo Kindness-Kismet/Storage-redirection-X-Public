@@ -305,24 +305,20 @@ impl RuntimeFlow {
         }
 
         Logger::init(Some(&self.package_name));
-        let runtime_config_dir = resolve_runtime_config_dir();
-        config.init(Some(runtime_config_dir));
-        if runtime_config_dir == module_paths::SHARED_CONFIG_DIR {
-            let _ = config.reload_force();
-        }
-        // 监听共享配置目录，bind mount 后降权进程仍可访问，hook 路径可就地刷新配置。
-        let inotify_fd = watcher::init(runtime_config_dir);
-        if let Some(api) = self.api.as_ref()
-            && inotify_fd >= 0
-        {
-            if api.exempt_fd(inotify_fd) {
-                log::info!("config watch fd exempt fd={}", inotify_fd);
-            } else {
-                log::warn!("config watch fd exempt failed fd={}", inotify_fd);
-            }
-        }
         if writer_context.is_system_writer {
             log::info!("writer: file log off, logcat only");
+            config.init(Some(module_paths::SHARED_CONFIG_DIR));
+            // 监听共享配置目录，bind mount 后降权仍可访问
+            let inotify_fd = watcher::init(module_paths::SHARED_CONFIG_DIR);
+            if let Some(api) = self.api.as_ref()
+                && inotify_fd >= 0
+            {
+                if api.exempt_fd(inotify_fd) {
+                    log::info!("config watch fd exempt fd={}", inotify_fd);
+                } else {
+                    log::warn!("config watch fd exempt failed fd={}", inotify_fd);
+                }
+            }
         }
 
         log::info!(
@@ -639,69 +635,6 @@ fn install_java_hook(env: *mut jni_sys::JNIEnv) {
     }
 }
 
-fn resolve_runtime_config_dir() -> &'static str {
-    if fs::is_directory(&format!("{}/apps", module_paths::SHARED_CONFIG_DIR)) {
-        return module_paths::SHARED_CONFIG_DIR;
-    }
-
-    ensure_shared_config_bind_mount();
-    if fs::is_directory(&format!("{}/apps", module_paths::SHARED_CONFIG_DIR)) {
-        return module_paths::SHARED_CONFIG_DIR;
-    }
-
-    log::warn!(
-        "shared config unavailable, fallback module dir shared={} module={}",
-        module_paths::SHARED_CONFIG_DIR,
-        module_paths::CONFIG_DIR
-    );
-    module_paths::CONFIG_DIR
-}
-
-fn ensure_shared_config_bind_mount() {
-    if !fs::is_directory(module_paths::CONFIG_DIR) {
-        log::warn!("shared config source missing {}", module_paths::CONFIG_DIR);
-        return;
-    }
-    if !fs::create_directory(module_paths::SHARED_CONFIG_DIR, -1) {
-        log::warn!(
-            "shared config target mkdir failed {}",
-            module_paths::SHARED_CONFIG_DIR
-        );
-        return;
-    }
-
-    let Ok(c_source) = CString::new(module_paths::CONFIG_DIR) else {
-        return;
-    };
-    let Ok(c_target) = CString::new(module_paths::SHARED_CONFIG_DIR) else {
-        return;
-    };
-    let ret = unsafe {
-        libc::mount(
-            c_source.as_ptr(),
-            c_target.as_ptr(),
-            std::ptr::null(),
-            (libc::MS_BIND | libc::MS_REC) as libc::c_ulong,
-            std::ptr::null(),
-        )
-    };
-    if ret == 0 {
-        log::info!(
-            "shared config bind mounted src={} dst={}",
-            module_paths::CONFIG_DIR,
-            module_paths::SHARED_CONFIG_DIR
-        );
-        return;
-    }
-
-    log::warn!(
-        "shared config bind failed src={} dst={} errno={}",
-        module_paths::CONFIG_DIR,
-        module_paths::SHARED_CONFIG_DIR,
-        last_errno()
-    );
-}
-
 fn log_specialize_perf(perf: &SpecializePerf<'_>) {
     if perf.total_ms < SPECIALIZE_SLOW_MS
         && !perf.should_redirect
@@ -886,8 +819,4 @@ fn clear_mount_status_marker(app_data_dir: &str, app_pid: i32) {
     if unsafe { libc::unlink(c_path.as_ptr()) } == 0 {
         log::info!("old marker cleared {}", marker_path);
     }
-}
-
-fn last_errno() -> i32 {
-    unsafe { *libc::__errno() }
 }

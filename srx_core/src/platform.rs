@@ -1,22 +1,13 @@
-#[path = "platform/anti_detect.rs"]
 pub mod anti_detect;
-#[path = "platform/elf_img.rs"]
 pub mod elf_img;
-#[path = "platform/fs.rs"]
 pub mod fs;
-#[path = "platform/gnu_debugdata.rs"]
 pub mod gnu_debugdata;
-#[path = "platform/linker.rs"]
 pub mod linker;
-#[path = "platform/module_paths.rs"]
 pub mod module_paths;
-#[path = "platform/paths.rs"]
 pub mod paths;
-#[path = "platform/unique_fd.rs"]
 pub mod unique_fd;
 
 pub const ANDROID_USER_ID_OFFSET: i32 = 100000;
-pub const ANDROID_APP_UID_START: i32 = 10000;
 pub const MIN_SUPPORTED_API_LEVEL: i32 = 31;
 const ISOLATED_APP_ID_START: i32 = 99000;
 const ISOLATED_APP_ID_END: i32 = 99999;

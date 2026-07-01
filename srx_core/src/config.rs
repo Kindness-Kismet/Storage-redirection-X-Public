@@ -5,23 +5,13 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-#[path = "config/consensus.rs"]
 mod consensus;
-#[path = "config/fingerprint.rs"]
 mod fingerprint;
-#[path = "config/ingest.rs"]
 mod ingest;
-#[path = "config/inspect.rs"]
 mod inspect;
-#[path = "config/mapping_prep.rs"]
-mod mapping_prep;
-#[path = "config/merge.rs"]
 mod merge;
-#[path = "config/raw_scan.rs"]
 mod raw_scan;
-#[path = "config/source.rs"]
 mod source;
-#[path = "config/watcher.rs"]
 pub mod watcher;
 
 #[derive(Clone)]
@@ -35,26 +25,6 @@ pub struct UserProfile {
 #[derive(Clone)]
 pub struct AppProfile {
     pub user_profiles: HashMap<i32, UserProfile>,
-}
-
-#[derive(Clone)]
-#[allow(dead_code)]
-pub struct ResolvedUserProfileSnapshot {
-    pub user_id: i32,
-    pub redirect_target: String,
-    pub allowed_real_paths: Vec<String>,
-    pub excluded_real_paths: Vec<String>,
-    pub path_mappings: Vec<PathMapping>,
-    pub is_mapping_mode_only: bool,
-}
-
-#[derive(Clone)]
-#[allow(dead_code)]
-pub struct EnabledPathMappingSnapshot {
-    pub package_name: String,
-    pub user_id: i32,
-    pub app_uid: i32,
-    pub path_mappings: Vec<PathMapping>,
 }
 
 struct SettingsState {
@@ -104,10 +74,6 @@ impl SettingsHub {
 
     pub fn config_version(&self) -> u64 {
         self.config_version.load(Ordering::Relaxed)
-    }
-
-    fn bump_config_version(&self) {
-        self.config_version.fetch_add(1, Ordering::Relaxed);
     }
 }
 

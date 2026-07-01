@@ -11,15 +11,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 const WRITER_ALLOWED_LOG_STEP: u64 = 256;
 const REDIRECT_SLOW_MS: i64 = 5;
 const REDIRECT_SAMPLE_STEP: u64 = 2048;
-const RUNTIME_CONFIG_RELOAD_INTERVAL_MS: i64 = 1000;
-const RUNTIME_CONFIG_EVENT_RELOAD_INTERVAL_MS: i64 = 100;
-const RUNTIME_CONFIG_EVENT_RELOAD_WINDOW_MS: i64 = 1500;
 static WRITER_ALLOWED_LOG_COUNT: AtomicU64 = AtomicU64::new(0);
 static REDIRECT_DECISION_COUNT: AtomicU64 = AtomicU64::new(0);
-static LAST_RUNTIME_CONFIG_RELOAD_CHECK_MS: std::sync::atomic::AtomicI64 =
-    std::sync::atomic::AtomicI64::new(i64::MIN / 2);
-static FORCE_RUNTIME_CONFIG_RELOAD_UNTIL_MS: std::sync::atomic::AtomicI64 =
-    std::sync::atomic::AtomicI64::new(i64::MIN / 2);
 
 #[inline]
 fn should_log_step(count: u64, step: u64) -> bool {
@@ -33,21 +26,26 @@ pub fn process_redirect_path(hub: &InterceptHub, pathname: &str) -> RedirectDeci
     let package_name = hub.get_package_name();
     let is_shared_uid = policy::is_shared_uid_process(self_uid);
     let is_system_writer_process = policy::is_system_writer_package(&package_name) || is_shared_uid;
-    let reload_ms =
-        refresh_runtime_config_if_needed(&package_name, self_uid, !is_system_writer_process);
     if !is_system_writer_process {
         let decision = PathRouter::instance().process_path(pathname);
-        log_redirect_perf(&RedirectPerf {
-            mode: "app",
-            package_name: &package_name,
-            exit_reason: "router",
-            path: pathname,
-            caller_package: "",
-            reload_ms,
-            started_ms: perf_started_ms,
-            decision: &decision,
-        });
+        log_redirect_perf(
+            "app",
+            &package_name,
+            "router",
+            pathname,
+            "",
+            perf_started_ms,
+            &decision,
+        );
         return decision;
+    }
+
+    let reload_started_ms = paths::monotonic_ms();
+    let mut reload_ms = 0;
+    // 综合 inotify 与兜底轮询，按需触发配置重载
+    if watcher::should_reload() {
+        SettingsHub::instance().reload_if_changed();
+        reload_ms = paths::monotonic_ms().saturating_sub(reload_started_ms);
     }
 
     if pathname.is_empty() {
@@ -89,14 +87,15 @@ pub fn process_redirect_path(hub: &InterceptHub, pathname: &str) -> RedirectDeci
     let user_id =
         writer::resolve_system_writer_user_id(&normalized_path, &mut effective_caller_uid);
     let mut is_caller_from_inferred = false;
-    writer::maybe_override_system_writer_caller_by_path(
-        &normalized_path,
-        &mut effective_caller_uid,
-        user_id,
-        &mut effective_caller_package,
-        &mut is_caller_from_inferred,
-    );
-    if original_caller_uid < writer::ANDROID_APP_UID_START && effective_caller_package.is_empty() {
+    if original_caller_uid >= writer::ANDROID_APP_UID_START {
+        writer::maybe_override_system_writer_caller_by_path(
+            &normalized_path,
+            &mut effective_caller_uid,
+            user_id,
+            &mut effective_caller_package,
+            &mut is_caller_from_inferred,
+        );
+    } else if effective_caller_package.is_empty() {
         writer::log_system_writer_skip_path_infer_for_low_uid(
             original_caller_uid,
             &normalized_path,
@@ -259,7 +258,11 @@ pub fn process_redirect_path(hub: &InterceptHub, pathname: &str) -> RedirectDeci
     let mapped_path = writer::map_path_by_caller_mappings(&resolved_path, &caller_mappings);
     let mapping_ms = paths::monotonic_ms().saturating_sub(mapping_started_ms);
     if !mapped_path.is_empty() && mapped_path != resolved_path {
-        let new_path = writer::storage_to_data_media_path(&mapped_path);
+        let new_path = if is_data_media {
+            writer::storage_to_data_media_path(&mapped_path)
+        } else {
+            mapped_path
+        };
         log::debug!(
             "writer: caller map caller={} uid={} from={} to={}",
             effective_caller_package,
@@ -441,7 +444,11 @@ pub fn process_redirect_path(hub: &InterceptHub, pathname: &str) -> RedirectDeci
         return decision;
     }
 
-    let new_path = writer::storage_to_data_media_path(&fallback_path);
+    let new_path = if is_data_media {
+        writer::storage_to_data_media_path(&fallback_path)
+    } else {
+        fallback_path
+    };
     log::debug!(
         "writer: default redirect caller={} uid={} from={} to={}",
         effective_caller_package,
@@ -479,55 +486,6 @@ pub fn record_redirect_hit(hub: &InterceptHub, op_name: &str, from_path: &str, t
     hub.increment_global_redirect_count();
 }
 
-fn refresh_runtime_config_if_needed(
-    package_name: &str,
-    app_uid: i32,
-    should_refresh_router: bool,
-) -> i64 {
-    let started_ms = paths::monotonic_ms();
-    let did_reload = if watcher::poll_changed() {
-        let force_until = started_ms.saturating_add(RUNTIME_CONFIG_EVENT_RELOAD_WINDOW_MS);
-        FORCE_RUNTIME_CONFIG_RELOAD_UNTIL_MS.store(force_until, Ordering::Relaxed);
-        LAST_RUNTIME_CONFIG_RELOAD_CHECK_MS.store(started_ms, Ordering::Relaxed);
-        SettingsHub::instance().reload_force()
-    } else {
-        let force_until = FORCE_RUNTIME_CONFIG_RELOAD_UNTIL_MS.load(Ordering::Relaxed);
-        let is_event_window = started_ms <= force_until;
-        let reload_interval_ms = if is_event_window {
-            RUNTIME_CONFIG_EVENT_RELOAD_INTERVAL_MS
-        } else {
-            RUNTIME_CONFIG_RELOAD_INTERVAL_MS
-        };
-        let last_ms = LAST_RUNTIME_CONFIG_RELOAD_CHECK_MS.load(Ordering::Relaxed);
-        if started_ms.saturating_sub(last_ms) < reload_interval_ms {
-            return 0;
-        }
-        if LAST_RUNTIME_CONFIG_RELOAD_CHECK_MS
-            .compare_exchange(last_ms, started_ms, Ordering::AcqRel, Ordering::Relaxed)
-            .is_err()
-        {
-            return 0;
-        }
-        if is_event_window {
-            SettingsHub::instance().reload_force()
-        } else {
-            let before = SettingsHub::instance().config_version();
-            let _ = SettingsHub::instance().reload_if_changed();
-            SettingsHub::instance().config_version() != before
-        }
-    };
-
-    if did_reload {
-        policy::refresh_shared_uid_cache();
-        if should_refresh_router {
-            PathRouter::instance().configure_from_settings(package_name, app_uid);
-        }
-        paths::monotonic_ms().saturating_sub(started_ms)
-    } else {
-        0
-    }
-}
-
 struct WriterRedirectPerf<'a> {
     package_name: &'a str,
     exit_reason: &'a str,
@@ -544,34 +502,30 @@ struct WriterRedirectPerf<'a> {
     decision: &'a RedirectDecision,
 }
 
-fn log_redirect_perf(perf: &RedirectPerf<'_>) {
-    let total_ms = paths::monotonic_ms().saturating_sub(perf.started_ms);
+fn log_redirect_perf(
+    mode: &str,
+    package_name: &str,
+    exit_reason: &str,
+    path: &str,
+    caller_package: &str,
+    started_ms: i64,
+    decision: &RedirectDecision,
+) {
+    let total_ms = paths::monotonic_ms().saturating_sub(started_ms);
     if !should_log_redirect_perf(total_ms) {
         return;
     }
     log::info!(
-        "perf redirect mode={} pkg={} caller={} exit={} action={} path={} to={} reload_ms={} total_ms={}",
-        perf.mode,
-        perf.package_name,
-        perf.caller_package,
-        perf.exit_reason,
-        redirect_action_text(perf.decision),
-        perf.path,
-        perf.decision.new_path,
-        perf.reload_ms,
+        "perf redirect mode={} pkg={} caller={} exit={} action={} path={} to={} total_ms={}",
+        mode,
+        package_name,
+        caller_package,
+        exit_reason,
+        redirect_action_text(decision),
+        path,
+        decision.new_path,
         total_ms
     );
-}
-
-struct RedirectPerf<'a> {
-    mode: &'a str,
-    package_name: &'a str,
-    exit_reason: &'a str,
-    path: &'a str,
-    caller_package: &'a str,
-    reload_ms: i64,
-    started_ms: i64,
-    decision: &'a RedirectDecision,
 }
 
 fn log_writer_redirect_perf(perf: &WriterRedirectPerf<'_>) {

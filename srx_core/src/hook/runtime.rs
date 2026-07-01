@@ -2,7 +2,7 @@ use super::stats::InterceptHub;
 use super::{caller, context, diagnostic, monitor, path as path_utils};
 use crate::platform::{fs, paths};
 use crate::redirect::{policy, process_redirect_path, record_redirect_hit};
-use libc::{AT_FDCWD, c_char, c_int, c_void, mode_t};
+use libc::{AT_FDCWD, c_char, c_void, mode_t};
 use std::ffi::CString;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -141,61 +141,6 @@ pub fn ensure_redirect_parent_directory(op_name: &str, from_path: &str, to_path:
         from_path,
         to_path
     );
-}
-
-pub fn retry_redirect_open_after_parent_prepare<F>(
-    op_name: &str,
-    from_path: &str,
-    to_path: &str,
-    flags: i32,
-    mode: mode_t,
-    call_original: F,
-) -> c_int
-where
-    F: FnOnce(*const c_char) -> c_int,
-{
-    let parent_dir = paths::parent(to_path);
-    if parent_dir.is_empty() || parent_dir == "/" {
-        return call_original(std::ptr::null());
-    }
-
-    if !fs::create_directory(&parent_dir, -1) {
-        log::warn!(
-            "redirect retry parent mkdir failed op={} dir={} from={} to={}",
-            op_name,
-            parent_dir,
-            from_path,
-            to_path
-        );
-    } else {
-        log::debug!(
-            "redirect retry parent mkdir ok op={} dir={}",
-            op_name,
-            parent_dir
-        );
-    }
-
-    let Ok(c_path) = CString::new(to_path) else {
-        return call_original(std::ptr::null());
-    };
-    let result = call_original(c_path.as_ptr());
-    let error_no = if result < 0 {
-        unsafe { *libc::__errno() }
-    } else {
-        0
-    };
-    if result < 0 {
-        log::warn!(
-            "redirect retry failed op={} flags=0x{:x} mode=0{:o} from={} to={} errno={}",
-            op_name,
-            flags,
-            mode,
-            from_path,
-            to_path,
-            error_no
-        );
-    }
-    result
 }
 
 // 入口为用户可见 /storage/emulated/X，底层要落到 /data/media/X
