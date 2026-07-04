@@ -2,6 +2,7 @@ name: 端到端测试
 
 on:
   workflow_dispatch:
+  workflow_call:
   pull_request:
     branches: [ main ]
 

@@ -161,9 +161,14 @@ jobs:
           test -f build/zygisk/Storage-Redirect-X_v${{ needs.prepare.outputs.version }}-arm64-v8a.zip
           test -f build/apk/Storage-Redirect-X_${{ needs.prepare.outputs.version }}_arm64-v8a.apk
 
+  e2e:
+    name: 端到端测试
+    needs: verify
+    uses: ./.github/workflows/tests.yml
+
   auto-release:
     name: 自动触发正式版
-    needs: [prepare, verify]
+    needs: [prepare, verify, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
