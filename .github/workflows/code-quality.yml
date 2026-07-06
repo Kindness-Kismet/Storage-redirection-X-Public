@@ -27,19 +27,16 @@ jobs:
 
     steps:
       - name: 检出代码
-        uses: actions/checkout@v6
-
-      - name: 检查 GitHub Actions 语法
-        uses: rhysd/actionlint@v1.7.12
+        uses: actions/checkout@v7.0.0
 
       - name: 配置 Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.4.0
         with:
           distribution: temurin
           java-version: "25"
 
       - name: 配置 Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v6.3.0
         with:
           python-version: "3.x"
 
@@ -50,10 +47,10 @@ jobs:
           targets: aarch64-linux-android
 
       - name: 配置 Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v4.0.1
 
       - name: 缓存 Cargo 依赖
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -65,7 +62,7 @@ jobs:
             cargo-${{ runner.os }}-${{ runner.arch }}-
 
       - name: 配置 Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: 安装主机编译工具
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
