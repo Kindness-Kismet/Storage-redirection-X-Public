@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: 检查 GitHub Actions 语法
-        uses: rhysd/actionlint@v1
+        uses: rhysd/actionlint@v1.7.12
 
       - name: 配置 Java
         uses: actions/setup-java@v5
