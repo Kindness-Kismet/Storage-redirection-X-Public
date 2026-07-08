@@ -194,6 +194,24 @@ pub fn build_hook_entries() -> Vec<HookEntry> {
             profile_mask: HookProfile::Full as u32 | HookProfile::SystemWriter as u32,
         },
         HookEntry {
+            symbol: "ftruncate",
+            new_func: super::ops::mutation::hooked_ftruncate as *mut _,
+            is_optional: true,
+            profile_mask: HookProfile::Full as u32 | HookProfile::SystemWriter as u32,
+        },
+        HookEntry {
+            symbol: "ftruncate64",
+            new_func: super::ops::mutation::hooked_ftruncate64 as *mut _,
+            is_optional: true,
+            profile_mask: HookProfile::Full as u32 | HookProfile::SystemWriter as u32,
+        },
+        HookEntry {
+            symbol: "futimens",
+            new_func: super::ops::mutation::hooked_futimens as *mut _,
+            is_optional: true,
+            profile_mask: HookProfile::Full as u32 | HookProfile::SystemWriter as u32,
+        },
+        HookEntry {
             symbol: "rename",
             new_func: super::ops::rename::hooked_rename as *mut _,
             is_optional: false,

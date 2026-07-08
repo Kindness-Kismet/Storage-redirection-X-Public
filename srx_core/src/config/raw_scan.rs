@@ -1,4 +1,4 @@
-use super::SettingsHub;
+use super::{RawUserEnabledState, SettingsHub};
 use crate::platform::module_paths;
 use serde_json::Value;
 use std::cell::{Cell, RefCell};
@@ -19,8 +19,7 @@ struct CacheEntry {
     user_id: i32,
     config_version: u64,
     cached_at_ms: i64,
-    is_enabled: bool,
-    has_config: bool,
+    state: RawUserEnabledState,
 }
 
 thread_local! {
@@ -30,9 +29,13 @@ thread_local! {
 
 impl SettingsHub {
     // 绕过内存态合并配置，直接从磁盘 JSON 判断用户启用状态
-    pub fn is_user_enabled_in_raw_config(&self, package_name: &str, user_id: i32) -> bool {
+    pub fn get_user_enabled_in_raw_config(
+        &self,
+        package_name: &str,
+        user_id: i32,
+    ) -> RawUserEnabledState {
         if package_name.is_empty() || user_id < 0 || package_name == SELF_PACKAGE_NAME {
-            return false;
+            return RawUserEnabledState::Unavailable;
         }
 
         let config_dir = {
@@ -40,7 +43,7 @@ impl SettingsHub {
             state.config_dir.clone()
         };
         if config_dir.is_empty() {
-            return false;
+            return RawUserEnabledState::Unavailable;
         }
 
         let config_version = self.config_version();
@@ -78,16 +81,15 @@ impl SettingsHub {
                             user_id,
                             config_version,
                             cached_at_ms: now_ms,
-                            is_enabled: false,
-                            has_config: false,
+                            state: RawUserEnabledState::Unavailable,
                         },
                     );
-                    return false;
+                    return RawUserEnabledState::Unavailable;
                 }
             },
         };
 
-        let mut is_enabled = false;
+        let mut raw_state = RawUserEnabledState::Disabled;
         let content = fs::read_to_string(&resolved_path).unwrap_or_default();
         if !content.is_empty() {
             match serde_json::from_str::<Value>(&content) {
@@ -97,9 +99,12 @@ impl SettingsHub {
                             users.get(&user_id.to_string()).and_then(|v| v.as_object())
                     {
                         let enabled = user.get("enabled");
-                        is_enabled = match enabled {
-                            None => true,
-                            Some(value) => value.as_bool().unwrap_or(false),
+                        raw_state = match enabled {
+                            None => RawUserEnabledState::Enabled,
+                            Some(value) if value.as_bool().unwrap_or(false) => {
+                                RawUserEnabledState::Enabled
+                            }
+                            Some(_) => RawUserEnabledState::Disabled,
                         };
                     }
                 }
@@ -108,7 +113,7 @@ impl SettingsHub {
                         "raw config parse failed pkg={} path={} err={}",
                         package_name, resolved_path, error
                     ));
-                    is_enabled = false;
+                    raw_state = RawUserEnabledState::Disabled;
                 }
             }
         }
@@ -121,12 +126,11 @@ impl SettingsHub {
                 user_id,
                 config_version,
                 cached_at_ms: now_ms,
-                is_enabled,
-                has_config: true,
+                state: raw_state,
             },
         );
 
-        is_enabled
+        raw_state
     }
 }
 
@@ -145,7 +149,7 @@ fn lookup_cached(
     user_id: i32,
     config_version: u64,
     now_ms: i64,
-) -> Option<bool> {
+) -> Option<RawUserEnabledState> {
     RAW_CACHE.with(|cache| {
         let cache = cache.borrow();
         cache
@@ -158,11 +162,7 @@ fn lookup_cached(
                 if now_ms.saturating_sub(entry.cached_at_ms) > RAW_CACHE_TTL_MS {
                     return None;
                 }
-                Some(if entry.has_config {
-                    entry.is_enabled
-                } else {
-                    false
-                })
+                Some(entry.state)
             })
     })
 }

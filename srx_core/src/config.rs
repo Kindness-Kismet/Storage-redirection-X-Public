@@ -27,6 +27,13 @@ pub struct AppProfile {
     pub user_profiles: HashMap<i32, UserProfile>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RawUserEnabledState {
+    Enabled,
+    Disabled,
+    Unavailable,
+}
+
 struct SettingsState {
     config_dir: String,
     is_file_monitor_enabled: bool,
@@ -74,6 +81,10 @@ impl SettingsHub {
 
     pub fn config_version(&self) -> u64 {
         self.config_version.load(Ordering::Relaxed)
+    }
+
+    fn bump_config_version(&self) {
+        self.config_version.fetch_add(1, Ordering::Relaxed);
     }
 }
 

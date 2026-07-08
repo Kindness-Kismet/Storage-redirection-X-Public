@@ -224,8 +224,63 @@ pub fn parent(path: &str) -> String {
     String::new()
 }
 
+pub fn is_sqlite_database_or_sidecar_path(path: &str) -> bool {
+    let file_name = path.rsplit('/').next().unwrap_or(path).to_ascii_lowercase();
+    [
+        ".db",
+        ".db-shm",
+        ".db-wal",
+        ".db-journal",
+        ".sqlite",
+        ".sqlite-shm",
+        ".sqlite-wal",
+        ".sqlite-journal",
+        ".sqlite3",
+        ".sqlite3-shm",
+        ".sqlite3-wal",
+        ".sqlite3-journal",
+    ]
+    .iter()
+    .any(|suffix| file_name.ends_with(suffix))
+}
+
+pub fn extract_android_private_path_owner(path: &str) -> String {
+    let normalized = normalize(path);
+    let Some(user_id) = storage_user_segment(&normalized) else {
+        return String::new();
+    };
+    let prefix = format!("/storage/emulated/{}/Android/", user_id);
+    let Some(relative) = normalized.strip_prefix(&prefix) else {
+        return String::new();
+    };
+
+    let mut segments = relative.split('/');
+    let Some(category) = segments.next() else {
+        return String::new();
+    };
+    if !matches!(category, "data" | "media" | "obb") {
+        return String::new();
+    }
+    segments.next().unwrap_or_default().to_string()
+}
+
 pub fn is_absolute(path: &str) -> bool {
     !path.is_empty() && path.starts_with('/')
+}
+
+fn storage_user_segment(path: &str) -> Option<&str> {
+    const PREFIX: &str = "/storage/emulated/";
+    let suffix = path.strip_prefix(PREFIX)?;
+    let end = suffix.find('/').unwrap_or(suffix.len());
+    if end == 0 {
+        return None;
+    }
+    let user_id = &suffix[..end];
+    if user_id.chars().all(|ch| ch.is_ascii_digit()) {
+        Some(user_id)
+    } else {
+        None
+    }
 }
 
 pub fn is_storage_path(path: &str) -> bool {

@@ -30,6 +30,8 @@ LOGD_BIN_NAME = "srx_logd"
 ANDROID_LINK_API_LEVEL = "29"
 APK_OUTPUT_DIR = Path("build/apk")
 MODULE_OUTPUT_DIR = Path("build/zygisk")
+MODULE_TEXT_FILE_NAMES = {"update-binary", "updater-script"}
+MODULE_TEXT_FILE_SUFFIXES = {".prop", ".rule", ".sh", ".sha256", ".txt"}
 
 
 @dataclass
@@ -203,6 +205,36 @@ def remove_dir(path: Path) -> None:
         shutil.rmtree(path)
 
 
+def cargo_target_root(project_root: Path) -> Path:
+    target_dir = os.environ.get("CARGO_TARGET_DIR")
+    if not target_dir:
+        return project_root / "target"
+    path = normalize_windows_path(target_dir)
+    return path if path.is_absolute() else project_root / path
+
+
+def write_lf_text(path: Path, content: str) -> None:
+    with path.open("w", encoding="utf-8", newline="\n") as file:
+        file.write(content)
+
+
+def is_module_text_file(path: Path) -> bool:
+    return path.name in MODULE_TEXT_FILE_NAMES or path.suffix in MODULE_TEXT_FILE_SUFFIXES
+
+
+def normalize_lf_file(path: Path) -> None:
+    data = path.read_bytes()
+    normalized = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    if normalized != data:
+        path.write_bytes(normalized)
+
+
+def normalize_lf_module_text_files(root: Path) -> None:
+    for path in root.rglob("*"):
+        if path.is_file() and is_module_text_file(path):
+            normalize_lf_file(path)
+
+
 def ensure_rust_ready(console: Console, rust_root: Path) -> None:
     if not rust_root.exists():
         fail(f"Rust project dir not found: {rust_root}")
@@ -250,10 +282,11 @@ def build_rust_module(console: Console, project_root: Path, rust_root: Path, lib
     if result.returncode != 0:
         fail(f"Rust build failed abi={abi}")
 
-    built_so = project_root / "target" / target / "release" / CORE_SO_NAME
+    target_root = cargo_target_root(project_root)
+    built_so = target_root / target / "release" / CORE_SO_NAME
     if not built_so.exists():
         fail(f"Rust output not found: {built_so}")
-    built_logd = project_root / "target" / target / "release" / LOGD_BIN_NAME
+    built_logd = target_root / target / "release" / LOGD_BIN_NAME
     if not built_logd.exists():
         fail(f"Rust output not found: {built_logd}")
     abi_output = libs_output_dir / abi
@@ -320,8 +353,8 @@ def package_module(console: Console, project_root: Path, module_assets_root: Pat
         f"updateJson={MODULE_UPDATE_JSON}\n"
         "support=true\n"
     )
-    (temp_dir / "module.prop").write_text(module_prop, encoding="utf-8")
-    (temp_dir / "module_version.txt").write_text(f"{version.name}\n", encoding="utf-8")
+    write_lf_text(temp_dir / "module.prop", module_prop)
+    write_lf_text(temp_dir / "module_version.txt", f"{version.name}\n")
 
     for name in ("action.sh", "customize.sh", "post-fs-data.sh", "service.sh", "sepolicy.rule", "uninstall.sh"):
         src = module_assets_root / name
@@ -351,6 +384,8 @@ def package_module(console: Console, project_root: Path, module_assets_root: Pat
         shutil.copy2(logd_bin, abi_bin_dir / LOGD_BIN_NAME)
         console.ok(f"added log daemon abi={abi}")
 
+    normalize_lf_module_text_files(temp_dir)
+
     suffix = abis[0] if len(abis) == 1 else "zygisk"
     zip_name = f"{APP_NAME}_v{version.name}-{suffix}.zip"
     output_file = output_dir / zip_name
@@ -376,7 +411,7 @@ def write_update_json(console: Console, output_dir: Path, version: VersionInfo, 
         "}\n"
     )
     output_file = output_dir / "update.json"
-    output_file.write_text(content, encoding="utf-8")
+    write_lf_text(output_file, content)
     console.ok(f"update json={output_file}")
 
 

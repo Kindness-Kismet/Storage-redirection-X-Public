@@ -16,6 +16,19 @@ impl SettingsHub {
         self.is_fuse_fixer_enabled.load(Ordering::Relaxed)
     }
 
+    pub fn is_user_profile_enabled_in_memory(&self, package_name: &str, user_id: i32) -> bool {
+        let state = self.state.lock().unwrap_or_else(|err| err.into_inner());
+        if !state.is_loaded || package_name == SELF_PACKAGE_NAME || user_id < 0 {
+            return false;
+        }
+        state
+            .apps
+            .get(package_name)
+            .and_then(|app| app.user_profiles.get(&user_id))
+            .map(|user| user.is_enabled)
+            .unwrap_or(false)
+    }
+
     pub fn should_redirect(&self, package_name: &str, app_uid: i32) -> bool {
         let state = self.state.lock().unwrap_or_else(|err| err.into_inner());
         if !state.is_loaded || package_name == SELF_PACKAGE_NAME {

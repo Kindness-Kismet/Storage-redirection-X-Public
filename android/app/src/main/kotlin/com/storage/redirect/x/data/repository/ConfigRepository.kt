@@ -186,7 +186,12 @@ class ConfigRepository {
             addProperty("file_monitor_enabled", isFileMonitorEnabled)
             addProperty("fuse_fixer_enabled", isFuseFixerEnabled)
         }
-        return RootService.writeFile(Paths.GLOBAL_CONFIG_FILE, gson.toJson(globalJson) + "\n")
+        val content = gson.toJson(globalJson) + "\n"
+        val isSaved = RootService.writeFile(Paths.GLOBAL_CONFIG_FILE, content)
+        if (isSaved) {
+            mirrorSharedFile(Paths.SHARED_CONFIG_DIR, Paths.SHARED_GLOBAL_CONFIG_FILE, content)
+        }
+        return isSaved
     }
 
     // 确保配置目录存在
@@ -224,7 +229,27 @@ class ConfigRepository {
         usersObj.add(userId.toString(), config.toUserJson())
         mergedJson.add("users", usersObj)
 
-        return RootService.writeFile(path, gson.toJson(mergedJson) + "\n")
+        val content = gson.toJson(mergedJson) + "\n"
+        val isSaved = RootService.writeFile(path, content)
+        if (isSaved) {
+            mirrorSharedFile(
+                Paths.SHARED_APPS_CONFIG_DIR,
+                Paths.sharedAppConfigFile(config.packageName),
+                content,
+            )
+        }
+        return isSaved
+    }
+
+    private suspend fun mirrorSharedFile(parentDir: String, path: String, content: String): Boolean {
+        RootService.runCommand("mkdir -p '$parentDir' && chmod 755 '${Paths.SHARED_CONFIG_DIR}' '$parentDir'")
+        val isSaved = RootService.writeFile(path, content)
+        if (isSaved) {
+            RootService.runCommand("chmod 644 '$path' && chcon u:object_r:shell_data_file:s0 '$path' 2>/dev/null")
+        } else {
+            Logger.warn("Mirror shared config failed: $path")
+        }
+        return isSaved
     }
 
     private data class GlobalConfig(

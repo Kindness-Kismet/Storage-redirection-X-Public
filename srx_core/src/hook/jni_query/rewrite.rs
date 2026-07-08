@@ -17,6 +17,7 @@ pub(crate) fn rewrite_cursor_storage_path_for_caller(
     caller_uid: i32,
     preserve_missing_target: bool,
 ) -> Option<String> {
+    crate::hook::refresh_runtime_config_throttled();
     if caller_uid < 0 {
         return None;
     }
@@ -37,6 +38,7 @@ pub(crate) fn rewrite_cursor_storage_path_for_caller(
 }
 
 pub(super) fn rewrite_existing_cursor_storage_path(original_text: &str) -> Option<String> {
+    crate::hook::refresh_runtime_config_throttled();
     rewrite_cursor_storage_path_with_mode(original_text, false)
 }
 

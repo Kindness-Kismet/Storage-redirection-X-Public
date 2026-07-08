@@ -12,6 +12,7 @@ const MEDIA_PROVIDER_AOSP: &str = "com.android.providers.media.module";
 const MEDIA_PROVIDER_LEGACY: &str = "com.android.providers.media";
 const DOWNLOAD_PROVIDER: &str = "com.android.providers.downloads";
 const DOWNLOAD_PROVIDER_UI: &str = "com.android.providers.downloads.ui";
+const EXTERNAL_STORAGE_PROVIDER: &str = "com.android.externalstorage";
 const MTP_PACKAGE: &str = "com.android.mtp";
 
 #[derive(Default)]
@@ -34,7 +35,7 @@ pub fn is_media_provider_package(package_name: &str) -> bool {
     is_media_provider_candidate(package_name)
 }
 
-// 媒体链路中间进程：MediaProvider、DP、MTP、DocumentsUI、PhotoPicker
+// 媒体链路中间进程：MediaProvider、代写 provider/service，以及系统文件/照片选择 UI。
 pub fn is_media_intermediate_package(package_name: &str) -> bool {
     if package_name.is_empty() {
         return false;
@@ -46,9 +47,22 @@ pub fn is_media_intermediate_package(package_name: &str) -> bool {
 
     package_name == DOWNLOAD_PROVIDER
         || package_name == MTP_PACKAGE
-        || package_name == DOWNLOAD_PROVIDER_UI
-        || package_name.contains(".documentsui")
-        || package_name.contains(".photopicker")
+        || package_name == EXTERNAL_STORAGE_PROVIDER
+        || is_file_monitor_ui_package(package_name)
+}
+
+pub fn is_file_monitor_ui_package(package_name: &str) -> bool {
+    if package_name.is_empty() {
+        return false;
+    }
+
+    let normalized = package_name.to_ascii_lowercase();
+    normalized == DOWNLOAD_PROVIDER_UI
+        || normalized.contains(".documentsui")
+        || normalized.contains(".photopicker")
+        || normalized.contains(".filemanager")
+        || normalized.contains("fileexplorer")
+        || normalized.ends_with(".myfiles")
 }
 
 pub fn get_system_writer_name(_package_name: &str) -> &'static str {
@@ -239,4 +253,38 @@ fn load_shared_uid_cache(state: &mut SharedUidState, fingerprint: u64) {
     state.system_writer_shared_uids = system_writer_shared_uids;
     state.last_fingerprint = fingerprint;
     state.is_loaded = true;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_monitor_ui_detects_system_and_oem_file_shells() {
+        assert!(is_file_monitor_ui_package("com.android.documentsui"));
+        assert!(is_file_monitor_ui_package("com.android.photopicker"));
+        assert!(is_file_monitor_ui_package(
+            "com.android.providers.downloads.ui"
+        ));
+        assert!(is_file_monitor_ui_package("com.coloros.filemanager"));
+        assert!(is_file_monitor_ui_package(
+            "com.mi.android.globalFileExplorer"
+        ));
+        assert!(is_file_monitor_ui_package("com.sec.android.app.myfiles"));
+        assert!(!is_file_monitor_ui_package(
+            "com.android.providers.downloads"
+        ));
+    }
+
+    #[test]
+    fn media_intermediate_includes_file_ui_for_attribution() {
+        assert!(is_media_intermediate_package(
+            "com.android.providers.media.module"
+        ));
+        assert!(is_media_intermediate_package(
+            "com.android.providers.downloads"
+        ));
+        assert!(is_media_intermediate_package("com.android.externalstorage"));
+        assert!(is_media_intermediate_package("com.coloros.filemanager"));
+    }
 }

@@ -61,6 +61,69 @@ unsafe fn call_openat2(
     )
 }
 
+fn storage_to_data_media_path(path: &str) -> Option<String> {
+    const STORAGE_PREFIX: &str = "/storage/emulated/";
+    const DATA_MEDIA_PREFIX: &str = "/data/media/";
+    path.strip_prefix(STORAGE_PREFIX)
+        .map(|suffix| format!("{}{}", DATA_MEDIA_PREFIX, suffix))
+}
+
+fn maybe_retry_system_writer_backend_open<F>(
+    op_name: &str,
+    from_path: &str,
+    redirected_path: &str,
+    flags: c_int,
+    initial_result: c_int,
+    initial_errno: c_int,
+    call_backend: F,
+) -> c_int
+where
+    F: FnOnce(&CString) -> c_int,
+{
+    if initial_result >= 0
+        || initial_errno != libc::ENOENT
+        || !monitor::has_write_intent_flags(flags)
+    {
+        return initial_result;
+    }
+
+    let Some(backend_path) = storage_to_data_media_path(redirected_path) else {
+        return initial_result;
+    };
+    if backend_path == redirected_path {
+        return initial_result;
+    }
+
+    runtime::ensure_redirect_parent_dirs(&backend_path, 0o775);
+    let Ok(c_backend_path) = CString::new(backend_path.as_str()) else {
+        return initial_result;
+    };
+
+    let retry_result = call_backend(&c_backend_path);
+    let retry_errno = if retry_result < 0 {
+        unsafe { *libc::__errno() }
+    } else {
+        0
+    };
+    log::info!(
+        "write op={} backend retry from={} to={} backend={} ret={} errno={} retry_ret={} retry_errno={}",
+        op_name,
+        from_path,
+        redirected_path,
+        backend_path,
+        initial_result,
+        initial_errno,
+        retry_result,
+        retry_errno
+    );
+
+    if retry_result >= 0 {
+        return retry_result;
+    }
+    unsafe { *libc::__errno() = initial_errno };
+    initial_result
+}
+
 pub unsafe extern "C" fn hooked_open(pathname: *const c_char, flags: c_int, mode: mode_t) -> c_int {
     runtime::with_hook_guard(
         || call_open(pathname, flags, mode),
@@ -110,7 +173,21 @@ pub unsafe extern "C" fn hooked_open(pathname: *const c_char, flags: c_int, mode
                 flags,
             );
             let result = if let Ok(c_path) = CString::new(final_path.as_ref()) {
-                call_open(c_path.as_ptr(), flags, mode)
+                let result = call_open(c_path.as_ptr(), flags, mode);
+                let error_no = if result < 0 { *libc::__errno() } else { 0 };
+                if is_redirected && is_system_writer {
+                    maybe_retry_system_writer_backend_open(
+                        "open",
+                        &path_text,
+                        final_path.as_ref(),
+                        flags,
+                        result,
+                        error_no,
+                        |backend| call_open(backend.as_ptr(), flags, mode),
+                    )
+                } else {
+                    result
+                }
             } else {
                 call_open(pathname, flags, mode)
             };
@@ -195,10 +272,10 @@ fn handle_openat_like<F>(
     dirfd: c_int,
     pathname: *const c_char,
     flags: c_int,
-    call_original: F,
+    mut call_original: F,
 ) -> c_int
 where
-    F: FnOnce(c_int, *const c_char) -> c_int,
+    F: FnMut(c_int, *const c_char) -> c_int,
 {
     if pathname.is_null() {
         return call_original(dirfd, pathname);
@@ -277,6 +354,24 @@ where
         flags,
     );
     let result = call_original(call_dirfd, call_path);
+    let error_no = if result < 0 {
+        unsafe { *libc::__errno() }
+    } else {
+        0
+    };
+    let result = if is_redirected && is_system_writer {
+        maybe_retry_system_writer_backend_open(
+            op_name,
+            path_for_decision.as_ref(),
+            final_path.as_ref(),
+            flags,
+            result,
+            error_no,
+            |backend| call_original(AT_FDCWD, backend.as_ptr()),
+        )
+    } else {
+        result
+    };
     let error_no = if result < 0 {
         unsafe { *libc::__errno() }
     } else {

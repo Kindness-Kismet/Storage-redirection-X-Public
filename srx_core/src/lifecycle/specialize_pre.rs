@@ -118,13 +118,14 @@ impl RuntimeFlow {
         let decision_ms = monotonic_ms().saturating_sub(decision_started_ms);
 
         let is_system_writer = policy::is_system_writer_package(&self.package_name);
-        if nice_name.ends_with(":PhotoPicker") {
+        if should_bypass_file_monitor_ui_process(&self.package_name, &nice_name) {
             self.should_redirect = false;
             self.should_monitor = false;
             self.is_system_writer_hook_redirect = false;
             self.should_skip_post_work = true;
             log::info!(
-                "PhotoPicker bypass nice={} uid={} pid={}",
+                "file monitor UI bypass pkg={} nice={} uid={} pid={}",
+                self.package_name,
                 nice_name,
                 self.app_uid,
                 self.app_pid
@@ -132,7 +133,7 @@ impl RuntimeFlow {
             self.request_dlclose();
             log_specialize_perf(&SpecializePerf {
                 package_name: &self.package_name,
-                exit_reason: "photopicker",
+                exit_reason: "file_ui",
                 pid: self.app_pid,
                 uid: self.app_uid,
                 app_count: config.get_app_count(),
@@ -217,8 +218,7 @@ impl RuntimeFlow {
         );
         let writer_context_ms = monotonic_ms().saturating_sub(writer_context_started_ms);
 
-        self.should_install_fuse_fixer =
-            config.is_fuse_fixer_enabled() && policy::is_media_provider_package(&self.package_name);
+        self.should_install_fuse_fixer = policy::is_media_provider_package(&self.package_name);
         if self.should_install_fuse_fixer {
             self.should_keep_module_loaded = true;
         }
@@ -307,9 +307,16 @@ impl RuntimeFlow {
         Logger::init(Some(&self.package_name));
         if writer_context.is_system_writer {
             log::info!("writer: file log off, logcat only");
-            config.init(Some(module_paths::SHARED_CONFIG_DIR));
-            // 监听共享配置目录，bind mount 后降权仍可访问
-            let inotify_fd = watcher::init(module_paths::SHARED_CONFIG_DIR);
+            let shared_apps_dir = format!("{}/apps", module_paths::SHARED_CONFIG_DIR);
+            let watch_config_dir = if fs::is_directory(&shared_apps_dir) {
+                config.init(Some(module_paths::SHARED_CONFIG_DIR));
+                module_paths::SHARED_CONFIG_DIR
+            } else {
+                log::warn!("shared config unavailable, use module config dir");
+                module_paths::CONFIG_DIR
+            };
+            // 监听当前命名空间中可见的配置目录，系统代写进程降权后仍可热更新
+            let inotify_fd = watcher::init(watch_config_dir);
             if let Some(api) = self.api.as_ref()
                 && inotify_fd >= 0
             {
@@ -317,6 +324,7 @@ impl RuntimeFlow {
                     log::info!("config watch fd exempt fd={}", inotify_fd);
                 } else {
                     log::warn!("config watch fd exempt failed fd={}", inotify_fd);
+                    watcher::enable_fallback_poll();
                 }
             }
         }
@@ -726,6 +734,14 @@ fn resolve_system_writer_context(
     context
 }
 
+fn should_bypass_file_monitor_ui_process(package_name: &str, nice_name: &str) -> bool {
+    policy::is_file_monitor_ui_package(package_name) || is_legacy_file_monitor_ui_process(nice_name)
+}
+
+fn is_legacy_file_monitor_ui_process(nice_name: &str) -> bool {
+    nice_name == "android.process.mediaUI" || nice_name.ends_with(":PhotoPicker")
+}
+
 fn log_allowed_real_paths(paths: &[String]) {
     for path in paths {
         log::info!("cfg allow={}", path);
@@ -818,5 +834,34 @@ fn clear_mount_status_marker(app_data_dir: &str, app_pid: i32) {
     };
     if unsafe { libc::unlink(c_path.as_ptr()) } == 0 {
         log::info!("old marker cleared {}", marker_path);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_monitor_ui_bypass_covers_system_oem_and_legacy_names() {
+        assert!(should_bypass_file_monitor_ui_process(
+            "com.android.documentsui",
+            "com.android.documentsui"
+        ));
+        assert!(should_bypass_file_monitor_ui_process(
+            "com.coloros.filemanager",
+            "com.coloros.filemanager"
+        ));
+        assert!(should_bypass_file_monitor_ui_process(
+            "com.android.providers.media",
+            "com.android.providers.media:PhotoPicker"
+        ));
+        assert!(should_bypass_file_monitor_ui_process(
+            "android.process.mediaUI",
+            "android.process.mediaUI"
+        ));
+        assert!(!should_bypass_file_monitor_ui_process(
+            "com.android.providers.downloads",
+            "com.android.providers.downloads"
+        ));
     }
 }

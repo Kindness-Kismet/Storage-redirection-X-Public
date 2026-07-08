@@ -66,3 +66,55 @@ refresh_uid_map() {
     rm -f "$tmp_uids_file"
   fi
 }
+
+sync_shared_config_dir() {
+  shared_config_dir="${SHARED_CONFIG_DIR:-/dev/srx_config}"
+  shared_apps_dir="$shared_config_dir/apps"
+
+  mkdir -p "$shared_apps_dir" 2>/dev/null || {
+    log -p w -t Boot "shared config sync mkdir failed: $shared_apps_dir"
+    return 1
+  }
+  chmod 755 "$shared_config_dir" "$shared_apps_dir" 2>/dev/null
+  chcon -R u:object_r:shell_data_file:s0 "$shared_config_dir" 2>/dev/null
+
+  if [ -f "$CONFIG_DIR/global.json" ]; then
+    tmp_global="$shared_config_dir/global.json.tmp"
+    cp "$CONFIG_DIR/global.json" "$tmp_global" 2>/dev/null && \
+      chmod 644 "$tmp_global" 2>/dev/null && \
+      chcon u:object_r:shell_data_file:s0 "$tmp_global" 2>/dev/null && \
+      mv "$tmp_global" "$shared_config_dir/global.json" 2>/dev/null
+  else
+    rm -f "$shared_config_dir/global.json" "$shared_config_dir/global.json.tmp" 2>/dev/null
+  fi
+
+  if [ -f "$SYSTEM_WRITER_UIDS_FILE" ]; then
+    tmp_uid="$shared_config_dir/system_writer_uids.list.tmp"
+    cp "$SYSTEM_WRITER_UIDS_FILE" "$tmp_uid" 2>/dev/null && \
+      chmod 644 "$tmp_uid" 2>/dev/null && \
+      chcon u:object_r:shell_data_file:s0 "$tmp_uid" 2>/dev/null && \
+      mv "$tmp_uid" "$shared_config_dir/system_writer_uids.list" 2>/dev/null
+  fi
+
+  for shared_file in "$shared_apps_dir"/*.json; do
+    [ -f "$shared_file" ] || continue
+    shared_name=$(basename "$shared_file")
+    [ -f "$APPS_CONFIG_DIR/$shared_name" ] || rm -f "$shared_file" 2>/dev/null
+  done
+
+  if [ -d "$APPS_CONFIG_DIR" ]; then
+    for config_file in "$APPS_CONFIG_DIR"/*.json; do
+      [ -f "$config_file" ] || continue
+      config_name=$(basename "$config_file")
+      tmp_app="$shared_apps_dir/$config_name.tmp"
+      cp "$config_file" "$tmp_app" 2>/dev/null && \
+        chmod 644 "$tmp_app" 2>/dev/null && \
+        chcon u:object_r:shell_data_file:s0 "$tmp_app" 2>/dev/null && \
+        mv "$tmp_app" "$shared_apps_dir/$config_name" 2>/dev/null
+    done
+  fi
+
+  chcon -R u:object_r:shell_data_file:s0 "$shared_config_dir" 2>/dev/null
+
+  return 0
+}

@@ -44,6 +44,22 @@ allow appdomain shell_data_file file getattr
 allow appdomain shell_data_file file create
 allow appdomain shell_data_file file unlink
 
+# SQLite probes F2FS features on FUSE-backed database files. Cross-app
+# Android/media database access can otherwise fail before SRX's FUSE policy
+# gets a chance to allow the owner-scoped SQLite sidecar path.
+allow appdomain fuse file ioctl
+allowxperm appdomain fuse file ioctl { 0xf50c }
+
+# /dev/srx_config may briefly keep the default device label before post-fs-data
+# or the config event collector relabels it.
+allow appdomain device dir search
+allow appdomain device dir open
+allow appdomain device dir read
+allow appdomain device dir getattr
+allow appdomain device file open
+allow appdomain device file read
+allow appdomain device file getattr
+
 allow zygote su unix_dgram_socket sendto
 allow appdomain su unix_dgram_socket sendto
 allow mediaprovider su unix_dgram_socket sendto

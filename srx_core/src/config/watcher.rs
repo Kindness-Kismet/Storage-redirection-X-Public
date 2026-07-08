@@ -69,12 +69,11 @@ pub fn poll_changed() -> bool {
     changed
 }
 
-// 综合 inotify 与兜底轮询，决定是否执行一次 reload_if_changed
-pub fn should_reload() -> bool {
-    poll_changed() || should_fallback_poll()
+pub fn enable_fallback_poll() {
+    FALLBACK_POLL_ENABLED.store(true, Ordering::Release);
 }
 
-fn should_fallback_poll() -> bool {
+pub(crate) fn should_fallback_poll() -> bool {
     if !FALLBACK_POLL_ENABLED.load(Ordering::Acquire) {
         return false;
     }

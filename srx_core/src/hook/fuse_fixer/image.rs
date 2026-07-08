@@ -9,11 +9,16 @@ use std::mem::size_of;
 const ZIP_LOCAL_HEADER_MAGIC: u32 = 0x04034b50;
 const SHT_PROGBITS: u32 = 1;
 const SHT_SYMTAB: u32 = 2;
+const SHT_STRTAB: u32 = 3;
+const SHT_RELA: u32 = 4;
+const SHT_REL: u32 = 9;
 const SHT_DYNSYM: u32 = 11;
 const SHN_UNDEF: u16 = 0;
 const SHN_LORESERVE: u16 = 0xff00;
 const SHN_HIRESERVE: u16 = 0xffff;
 const ELF_MAGIC: [u8; 4] = [0x7f, b'E', b'L', b'F'];
+const R_AARCH64_GLOB_DAT: u32 = 1025;
+const R_AARCH64_JUMP_SLOT: u32 = 1026;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -71,6 +76,21 @@ struct Elf64Sym {
     st_shndx: u16,
     st_value: u64,
     st_size: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Elf64Rela {
+    r_offset: u64,
+    r_info: u64,
+    r_addend: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Elf64Rel {
+    r_offset: u64,
+    r_info: u64,
 }
 
 const PT_LOAD: u32 = 1;
@@ -131,6 +151,79 @@ impl FuseJniImage {
             }
         }
         None
+    }
+
+    pub fn find_plt_slots(&self, name: &[u8]) -> Vec<usize> {
+        let Some(ehdr) = parse_ehdr(&self.image) else {
+            return Vec::new();
+        };
+        let mut slots = Vec::new();
+        for i in 0..ehdr.e_shnum as usize {
+            let Some(reloc) = section_header(&self.image, &ehdr, i) else {
+                continue;
+            };
+            let is_rela =
+                reloc.sh_type == SHT_RELA && reloc.sh_entsize as usize == size_of::<Elf64Rela>();
+            let is_rel =
+                reloc.sh_type == SHT_REL && reloc.sh_entsize as usize == size_of::<Elf64Rel>();
+            if !is_rela && !is_rel {
+                continue;
+            }
+            if reloc.sh_link >= ehdr.e_shnum as u32 {
+                continue;
+            }
+            let Some(symtab) = section_header(&self.image, &ehdr, reloc.sh_link as usize) else {
+                continue;
+            };
+            if symtab.sh_entsize as usize != size_of::<Elf64Sym>()
+                || symtab.sh_link >= ehdr.e_shnum as u32
+            {
+                continue;
+            }
+            let Some(strtab_header) = section_header(&self.image, &ehdr, symtab.sh_link as usize)
+            else {
+                continue;
+            };
+            if strtab_header.sh_type != SHT_STRTAB {
+                continue;
+            }
+            let Some(strtab) = section_bytes_by_header(&self.image, &strtab_header) else {
+                continue;
+            };
+            let count = (reloc.sh_size / reloc.sh_entsize) as usize;
+            for idx in 0..count {
+                let off = reloc.sh_offset as usize + idx * reloc.sh_entsize as usize;
+                let (r_offset, r_info) = if is_rela {
+                    let Some(rela) = read_struct::<Elf64Rela>(&self.image, off) else {
+                        continue;
+                    };
+                    (rela.r_offset, rela.r_info)
+                } else {
+                    let Some(rel) = read_struct::<Elf64Rel>(&self.image, off) else {
+                        continue;
+                    };
+                    (rel.r_offset, rel.r_info)
+                };
+                let rel_type = (r_info & 0xffff_ffff) as u32;
+                if rel_type != R_AARCH64_JUMP_SLOT && rel_type != R_AARCH64_GLOB_DAT {
+                    continue;
+                }
+                let sym_idx = (r_info >> 32) as usize;
+                let sym_off = symtab.sh_offset as usize + sym_idx * size_of::<Elf64Sym>();
+                let Some(sym) = read_struct::<Elf64Sym>(&self.image, sym_off) else {
+                    continue;
+                };
+                let Some(sym_name) = read_c_bytes(strtab, sym.st_name as usize) else {
+                    continue;
+                };
+                if sym_name == name {
+                    slots.push(self.load_bias + r_offset as usize);
+                }
+            }
+        }
+        slots.sort_unstable();
+        slots.dedup();
+        slots
     }
 }
 

@@ -1,8 +1,10 @@
 // FuseFixer 安装入口与 hook 回调：检测 Default Ignorable Code Point 并清理路径
 
+use super::super::media_fuse;
 use super::di::{has_default_ignorable, remove_default_ignorable};
 use super::image::FuseJniImage;
 use super::strings::{CxxString, Layout, StringAbi, read_cxx_string};
+use crate::config::SettingsHub;
 use once_cell::sync::OnceCell;
 use srx_inline_hook::{HookMode, hook_sym_addr, init};
 use std::os::raw::c_void;
@@ -21,11 +23,24 @@ const SYM_IS_BPF_NDK: &[u8] =
     b"_ZL19is_bpf_backing_pathRKNSt6__ndk112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE";
 const SYM_IS_BPF_STD: &[u8] =
     b"_ZL19is_bpf_backing_pathRKNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE";
+const SYM_SHOULD_OPEN_WITH_FUSE_NDK: &[u8] = b"_ZN13mediaprovider4fuse10FuseDaemon18ShouldOpenWithFuseEibRKNSt6__ndk112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE";
+const SYM_SHOULD_OPEN_WITH_FUSE_STD: &[u8] = b"_ZN13mediaprovider4fuse10FuseDaemon18ShouldOpenWithFuseEibRKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE";
 
 type IsAppFn = unsafe extern "C" fn(*const c_void, *const CxxString, u32) -> bool;
 type IsUserFn = unsafe extern "C" fn(*const c_void, *const c_void, *const CxxString) -> bool;
 type IsPkgFn = unsafe extern "C" fn(*const CxxString, *const CxxString) -> bool;
 type IsBpfFn = unsafe extern "C" fn(*const CxxString) -> bool;
+type ShouldOpenWithFuseFn =
+    unsafe extern "C" fn(*const c_void, i32, bool, *const CxxString) -> bool;
+
+unsafe extern "C" {
+    fn srx_fuse_fix_install(
+        reply_open_slot: *mut c_void,
+        reply_create_slot: *mut c_void,
+        passthrough_enable_slot: *mut c_void,
+        passthrough_open_slot: *mut c_void,
+    ) -> i32;
+}
 
 struct State {
     abi: StringAbi,
@@ -34,6 +49,7 @@ struct State {
     orig_is_user: AtomicU64,
     orig_is_pkg: AtomicU64,
     orig_is_bpf: AtomicU64,
+    orig_should_open_with_fuse: AtomicU64,
 }
 
 static STATE: OnceCell<State> = OnceCell::new();
@@ -114,6 +130,7 @@ fn try_install() -> bool {
         orig_is_user: AtomicU64::new(0),
         orig_is_pkg: AtomicU64::new(0),
         orig_is_bpf: AtomicU64::new(0),
+        orig_should_open_with_fuse: AtomicU64::new(0),
     };
     let state = STATE.get_or_init(|| state);
 
@@ -152,6 +169,17 @@ fn try_install() -> bool {
         &state.orig_is_bpf,
         false,
     );
+    install_one(
+        "ShouldOpenWithFuse",
+        image
+            .find_symbol(SYM_SHOULD_OPEN_WITH_FUSE_NDK)
+            .or_else(|| image.find_symbol(SYM_SHOULD_OPEN_WITH_FUSE_STD)),
+        hooked_should_open_with_fuse as *const c_void,
+        &state.orig_should_open_with_fuse,
+        false,
+    );
+
+    install_native_passthrough_hooks(&image);
 
     if ok {
         INIT_OK.store(true, Ordering::Release);
@@ -160,6 +188,43 @@ fn try_install() -> bool {
         log::warn!("{}", TAG_INSTALL_PARTIAL);
     }
     ok
+}
+
+fn install_native_passthrough_hooks(image: &FuseJniImage) {
+    let reply_open_slots = image.find_plt_slots(b"fuse_reply_open");
+    let reply_create_slots = image.find_plt_slots(b"fuse_reply_create");
+    let passthrough_enable_slots = image.find_plt_slots(b"fuse_passthrough_enable");
+    let passthrough_open_slots = image.find_plt_slots(b"fuse_passthrough_open");
+    log::info!(
+        "fuse fixer native plt slots reply_open={} reply_create={} passthrough_enable={} passthrough_open={}",
+        reply_open_slots.len(),
+        reply_create_slots.len(),
+        passthrough_enable_slots.len(),
+        passthrough_open_slots.len()
+    );
+    let installed = unsafe {
+        srx_fuse_fix_install(
+            first_slot_ptr(&reply_open_slots),
+            first_slot_ptr(&reply_create_slots),
+            first_slot_ptr(&passthrough_enable_slots),
+            first_slot_ptr(&passthrough_open_slots),
+        )
+    };
+    if installed > 0 {
+        log::info!(
+            "fuse fixer native passthrough hooks ok installed={}",
+            installed
+        );
+    } else {
+        log::warn!(
+            "fuse fixer native passthrough hooks unavailable installed={}",
+            installed
+        );
+    }
+}
+
+fn first_slot_ptr(slots: &[usize]) -> *mut c_void {
+    slots.first().copied().unwrap_or(0) as *mut c_void
 }
 
 fn install_one(
@@ -211,15 +276,19 @@ unsafe extern "C" fn hooked_is_app(fuse: *const c_void, path: *const CxxString, 
     }
     let orig: IsAppFn = unsafe { std::mem::transmute::<u64, IsAppFn>(raw) };
     let bytes = unsafe { read_cxx_string(path, state.layout) };
-    if !has_default_ignorable(bytes) {
-        return unsafe { orig(fuse, path, uid) };
+    let original = unsafe { orig(fuse, path, uid) };
+    if original || should_allow_srx_fuse_access(bytes, uid) {
+        return true;
+    }
+    if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
+        return false;
     }
     let cleaned = remove_default_ignorable(bytes);
     log_fix("is_app_accessible_path");
     let mut tmp = unsafe { state.abi.construct(&cleaned) };
     let result = unsafe { orig(fuse, &tmp as *const CxxString, uid) };
     unsafe { state.abi.drop_string(&mut tmp) };
-    result
+    result || should_allow_srx_fuse_access(&cleaned, uid)
 }
 
 unsafe extern "C" fn hooked_is_user(
@@ -236,7 +305,7 @@ unsafe extern "C" fn hooked_is_user(
     }
     let orig: IsUserFn = unsafe { std::mem::transmute::<u64, IsUserFn>(raw) };
     let bytes = unsafe { read_cxx_string(path, state.layout) };
-    if !has_default_ignorable(bytes) {
+    if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
         return unsafe { orig(req, fuse, path) };
     }
     let cleaned = remove_default_ignorable(bytes);
@@ -257,7 +326,7 @@ unsafe extern "C" fn hooked_is_pkg(path: *const CxxString, fuse_path: *const Cxx
     }
     let orig: IsPkgFn = unsafe { std::mem::transmute::<u64, IsPkgFn>(raw) };
     let bytes = unsafe { read_cxx_string(path, state.layout) };
-    if !has_default_ignorable(bytes) {
+    if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
         return unsafe { orig(path, fuse_path) };
     }
     let cleaned = remove_default_ignorable(bytes);
@@ -278,7 +347,7 @@ unsafe extern "C" fn hooked_is_bpf(path: *const CxxString) -> bool {
     }
     let orig: IsBpfFn = unsafe { std::mem::transmute::<u64, IsBpfFn>(raw) };
     let bytes = unsafe { read_cxx_string(path, state.layout) };
-    if !has_default_ignorable(bytes) {
+    if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
         return unsafe { orig(path) };
     }
     let cleaned = remove_default_ignorable(bytes);
@@ -287,4 +356,53 @@ unsafe extern "C" fn hooked_is_bpf(path: *const CxxString) -> bool {
     let result = unsafe { orig(&tmp as *const CxxString) };
     unsafe { state.abi.drop_string(&mut tmp) };
     result
+}
+
+unsafe extern "C" fn hooked_should_open_with_fuse(
+    daemon: *const c_void,
+    fd: i32,
+    for_read: bool,
+    path: *const CxxString,
+) -> bool {
+    let Some(state) = STATE.get() else {
+        return false;
+    };
+    let raw = state.orig_should_open_with_fuse.load(Ordering::Acquire);
+    if raw == 0 {
+        return false;
+    }
+    let orig: ShouldOpenWithFuseFn =
+        unsafe { std::mem::transmute::<u64, ShouldOpenWithFuseFn>(raw) };
+    let original = unsafe { orig(daemon, fd, for_read, path) };
+    if original {
+        return true;
+    }
+
+    let bytes = unsafe { read_cxx_string(path, state.layout) };
+    if should_force_userspace(bytes) {
+        return true;
+    }
+    if has_default_ignorable(bytes) {
+        let cleaned = remove_default_ignorable(bytes);
+        return should_force_userspace(&cleaned);
+    }
+    false
+}
+
+fn should_allow_srx_fuse_access(bytes: &[u8], uid: u32) -> bool {
+    let Ok(path) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    media_fuse::should_allow_private_owner_sqlite_access(path, uid as i32)
+}
+
+fn should_force_userspace(bytes: &[u8]) -> bool {
+    let Ok(path) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    media_fuse::should_force_userspace_for_private_owner_sqlite_path(path)
+}
+
+fn is_zero_width_fuse_fix_enabled() -> bool {
+    SettingsHub::instance().is_fuse_fixer_enabled()
 }

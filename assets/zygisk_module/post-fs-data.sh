@@ -97,14 +97,36 @@ if [ ! -f "$MAPPING_MIGRATION_MARKER" ] && [ -d "$APPS_DIR" ]; then
   touch "$MAPPING_MIGRATION_MARKER"
 fi
 
-# 将配置目录 bind mount 到所有进程可访问的位置，
-# 系统代写进程降权后仍能读取配置实现热更新。
+# 将配置镜像同步到所有进程可访问的位置。
+# 使用独立 tmpfs 承载真实文件镜像，而不是 bind mount 模块配置目录，
+# 避免应用最终 mount namespace 里只看到空目录。
 SHARED_CONFIG_DIR="/dev/srx_config"
-if [ ! -d "$SHARED_CONFIG_DIR" ]; then
-  mkdir -p "$SHARED_CONFIG_DIR"
+SHARED_APPS_DIR="$SHARED_CONFIG_DIR/apps"
+if grep -q " $SHARED_CONFIG_DIR " /proc/mounts 2>/dev/null; then
+  umount "$SHARED_CONFIG_DIR" 2>/dev/null
 fi
+mkdir -p "$SHARED_CONFIG_DIR"
+mount -t tmpfs -o mode=0755,nosuid,nodev,noexec srx_config "$SHARED_CONFIG_DIR" 2>/dev/null || \
+  mount -o bind "$SHARED_CONFIG_DIR" "$SHARED_CONFIG_DIR" 2>/dev/null
+mkdir -p "$SHARED_APPS_DIR"
+chmod 755 "$SHARED_CONFIG_DIR" "$SHARED_APPS_DIR"
+chcon -R u:object_r:shell_data_file:s0 "$SHARED_CONFIG_DIR" 2>/dev/null
 
-if ! grep -q " $SHARED_CONFIG_DIR " /proc/mounts 2>/dev/null; then
-  mount --bind "$CONFIG_DIR" "$SHARED_CONFIG_DIR"
+if [ -f "$CONFIG_DIR/global.json" ]; then
+  cp "$CONFIG_DIR/global.json" "$SHARED_CONFIG_DIR/global.json" 2>/dev/null
+  chmod 644 "$SHARED_CONFIG_DIR/global.json" 2>/dev/null
+  chcon u:object_r:shell_data_file:s0 "$SHARED_CONFIG_DIR/global.json" 2>/dev/null
 fi
-chmod 755 "$SHARED_CONFIG_DIR"
+if [ -f "$SYSTEM_WRITER_UIDS_FILE" ]; then
+  cp "$SYSTEM_WRITER_UIDS_FILE" "$SHARED_CONFIG_DIR/system_writer_uids.list" 2>/dev/null
+  chmod 644 "$SHARED_CONFIG_DIR/system_writer_uids.list" 2>/dev/null
+  chcon u:object_r:shell_data_file:s0 "$SHARED_CONFIG_DIR/system_writer_uids.list" 2>/dev/null
+fi
+if [ -d "$APPS_DIR" ]; then
+  for cfg in "$APPS_DIR"/*.json; do
+    [ -f "$cfg" ] || continue
+    cp "$cfg" "$SHARED_APPS_DIR/$(basename "$cfg")" 2>/dev/null
+  done
+  chmod 644 "$SHARED_APPS_DIR"/*.json 2>/dev/null
+  chcon -R u:object_r:shell_data_file:s0 "$SHARED_CONFIG_DIR" 2>/dev/null
+fi

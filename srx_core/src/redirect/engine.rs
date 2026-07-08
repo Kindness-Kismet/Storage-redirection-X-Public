@@ -3,7 +3,7 @@ use super::policy;
 use super::router::{PathRouter, RedirectAction, RedirectDecision};
 use super::thumbnail_diag::{self, ThumbnailDecisionDiag};
 use super::writer;
-use crate::config::{SettingsHub, watcher};
+use crate::config::{RawUserEnabledState, SettingsHub};
 use crate::hook::stats::InterceptHub;
 use crate::platform::paths;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -45,12 +45,8 @@ pub fn process_redirect_path(hub: &InterceptHub, pathname: &str) -> RedirectDeci
     }
 
     let reload_started_ms = paths::monotonic_ms();
-    let mut reload_ms = 0;
-    // 综合 inotify 与兜底轮询，按需触发配置重载
-    if watcher::should_reload() {
-        SettingsHub::instance().reload_if_changed();
-        reload_ms = paths::monotonic_ms().saturating_sub(reload_started_ms);
-    }
+    crate::hook::refresh_runtime_config_throttled();
+    let reload_ms = paths::monotonic_ms().saturating_sub(reload_started_ms);
 
     if pathname.is_empty() {
         let decision = RedirectDecision {
@@ -187,13 +183,12 @@ pub fn process_redirect_path(hub: &InterceptHub, pathname: &str) -> RedirectDeci
     let enable_started_ms = paths::monotonic_ms();
     let config = SettingsHub::instance();
     let enabled_in_memory = config.should_redirect(&effective_caller_package, effective_caller_uid);
-    let enabled_in_raw = if enabled_in_memory {
-        false
-    } else {
-        config.is_user_enabled_in_raw_config(&effective_caller_package, user_id)
-    };
+    let raw_enabled_state =
+        config.get_user_enabled_in_raw_config(&effective_caller_package, user_id);
+    let enabled_in_raw = raw_enabled_state == RawUserEnabledState::Enabled;
     let enable_ms = paths::monotonic_ms().saturating_sub(enable_started_ms);
-    if !enabled_in_memory && !enabled_in_raw {
+    if raw_enabled_state == RawUserEnabledState::Disabled || (!enabled_in_memory && !enabled_in_raw)
+    {
         writer::log_system_writer_redirect_disabled(
             &effective_caller_package,
             effective_caller_uid,

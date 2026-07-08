@@ -17,8 +17,18 @@ impl SettingsHub {
             let mut state = self.state.lock().unwrap_or_else(|err| err.into_inner());
             if let Some(dir) = config_dir
                 && !dir.is_empty()
+                && dir != state.config_dir
             {
-                state.config_dir = dir.to_string();
+                if is_config_dir_ready(dir) {
+                    state.config_dir = dir.to_string();
+                    state.is_loaded = false;
+                } else {
+                    log::warn!(
+                        "requested config dir unavailable: {}, keep {}",
+                        dir,
+                        state.config_dir
+                    );
+                }
             }
 
             if state.is_loaded {
@@ -67,38 +77,65 @@ impl SettingsHub {
         }
 
         let mut state = self.state.lock().unwrap_or_else(|err| err.into_inner());
-        if state.is_loaded {
+        if state.is_loaded && state.config_dir == loaded_state.config_dir {
             return true;
         }
-        let loaded_fingerprint = loaded_state.last_fingerprint;
+        if state.config_dir != loaded_state.config_dir {
+            return true;
+        }
         self.is_fuse_fixer_enabled
             .store(loaded_state.is_fuse_fixer_enabled, Ordering::Relaxed);
         *state = loaded_state;
-        self.config_version
-            .store(loaded_fingerprint, Ordering::Relaxed);
+        self.bump_config_version();
         true
     }
 
     // 指纹变化时原子替换 SettingsState
     pub fn reload_if_changed(&self) -> bool {
+        let config_dir = {
+            let state = self.state.lock().unwrap_or_else(|err| err.into_inner());
+            state.config_dir.clone()
+        };
+
+        self.reload_from_dir(&config_dir, false)
+    }
+
+    pub fn reload_force(&self) -> bool {
+        let config_dir = {
+            let state = self.state.lock().unwrap_or_else(|err| err.into_inner());
+            state.config_dir.clone()
+        };
+        self.reload_from_dir(&config_dir, true)
+    }
+
+    fn reload_from_dir(&self, config_dir: &str, force: bool) -> bool {
         let (config_dir, is_loaded, last_fingerprint) = {
             let state = self.state.lock().unwrap_or_else(|err| err.into_inner());
             (
-                state.config_dir.clone(),
+                config_dir.to_string(),
                 state.is_loaded,
                 state.last_fingerprint,
             )
         };
 
+        if !is_config_dir_ready(&config_dir) {
+            log::warn!(
+                "config dir unavailable during reload, keep cached state: {}",
+                config_dir
+            );
+            return true;
+        }
+
         let fingerprint = super::fingerprint::compute_config_fingerprint(&config_dir);
-        if is_loaded && fingerprint == last_fingerprint {
+        if !force && is_loaded && fingerprint == last_fingerprint {
             return true;
         }
 
         log::info!(
-            "config fp change cached={:x} cur={:x}, reload",
+            "config fp change cached={:x} cur={:x}, reload force={}",
             last_fingerprint,
-            fingerprint
+            fingerprint,
+            force
         );
 
         let load_started_ms = paths::monotonic_ms();
@@ -139,14 +176,18 @@ impl SettingsHub {
         if state.config_dir != loaded_state.config_dir {
             return true;
         }
-        let loaded_fingerprint = loaded_state.last_fingerprint;
         self.is_fuse_fixer_enabled
             .store(loaded_state.is_fuse_fixer_enabled, Ordering::Relaxed);
         *state = loaded_state;
-        self.config_version
-            .store(loaded_fingerprint, Ordering::Relaxed);
+        self.bump_config_version();
         true
     }
+}
+
+fn is_config_dir_ready(config_dir: &str) -> bool {
+    fs::metadata(format!("{}/{}", config_dir, APPS_CONFIG_DIR))
+        .map(|metadata| metadata.is_dir())
+        .unwrap_or(false)
 }
 
 fn load_global_config(state: &mut SettingsState) -> bool {

@@ -49,6 +49,9 @@ public class Hooker {
       Class<?> clazz = args[0].getClass();
       logAttachInfoCandidate(clazz, args);
       tryInstallQueryHook(clazz);
+      if (QUERY_HOOK_PENDING) {
+        tryLoadAndHookMediaProvider(clazz.getClassLoader());
+      }
     }
     return result;
   }
@@ -73,12 +76,14 @@ public class Hooker {
 
   public boolean unhook() { return target != null && doUnhook(target); }
 
-  // 调查模式保持 attachInfo 路径，避免直接类加载改变问题机行为
+  // Try already loaded MediaProvider classes first, then keep attachInfo as a fallback.
   public static boolean installMediaProviderHook() {
     logInstallInfo("java hook install begin process=" + currentProcessName() +
                    " pid=" + android.os.Process.myPid() +
                    " uid=" + android.os.Process.myUid());
-    return installAttachInfoHook();
+    boolean directHooked = tryDirectProviderHook();
+    boolean attachHooked = installAttachInfoHook();
+    return directHooked || attachHooked;
   }
 
   private static boolean installAttachInfoHook() {
@@ -151,6 +156,50 @@ public class Hooker {
   private static boolean isMediaProviderClass(String name) {
     return "com.android.providers.media.MediaProvider".equals(name) ||
         "com.android.providers.media.module.MediaProvider".equals(name);
+  }
+
+  private static boolean tryDirectProviderHook() {
+    boolean hookedAny = false;
+    for (String name : mediaProviderClassCandidates()) {
+      try {
+        Class<?> clazz = Class.forName(name);
+        logInstallInfo("java hook direct provider class=" + name +
+                       " loader=" + describeClassLoader(clazz.getClassLoader()));
+        if (tryInstallQueryHook(clazz))
+          hookedAny = true;
+      } catch (ClassNotFoundException ignored) {
+      } catch (Throwable t) {
+        logInstallWarn("java hook direct provider error " + name, t);
+      }
+    }
+    return hookedAny || !QUERY_HOOK_PENDING;
+  }
+
+  private static void tryLoadAndHookMediaProvider(ClassLoader loader) {
+    if (loader == null)
+      return;
+    for (String name : mediaProviderClassCandidates()) {
+      try {
+        Class<?> clazz = loader.loadClass(name);
+        if (clazz == null)
+          continue;
+        logInstallInfo("java hook load provider class=" + name +
+                       " loader=" + describeClassLoader(clazz.getClassLoader()));
+        tryInstallQueryHook(clazz);
+      } catch (ClassNotFoundException ignored) {
+      } catch (Throwable t) {
+        logInstallWarn("java hook load provider error " + name, t);
+      }
+      if (!QUERY_HOOK_PENDING)
+        return;
+    }
+  }
+
+  private static String[] mediaProviderClassCandidates() {
+    return new String[] {
+        "com.android.providers.media.MediaProvider",
+        "com.android.providers.media.module.MediaProvider"
+    };
   }
 
   private static boolean installQueryOn(Class<?> clazz) {

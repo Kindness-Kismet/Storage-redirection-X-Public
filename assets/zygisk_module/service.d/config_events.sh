@@ -170,13 +170,13 @@ get_state_signature() {
   echo "$state_line" | awk -F'|' '{print $2 "|" $3}'
 }
 
-should_force_stop_by_state() {
+should_refresh_runtime_by_state() {
   old_line="$1"
   new_line="$2"
   old_effective=$(get_state_effective "$old_line")
   new_effective=$(get_state_effective "$new_line")
 
-  # 生效配置仍为生效配置时，仅在内容变化后重启应用。
+  # 生效配置仍为生效配置时，仅在内容变化后刷新系统媒体运行时。
   if [ "$old_effective" -eq 1 ] && [ "$new_effective" -eq 1 ]; then
     old_sig=$(get_state_signature "$old_line")
     new_sig=$(get_state_signature "$new_line")
@@ -184,7 +184,7 @@ should_force_stop_by_state() {
     return $?
   fi
 
-  # 生效状态发生切换（启用/禁用/删除）时重启应用。
+  # 生效状态发生切换（启用/禁用/删除）时刷新系统媒体运行时。
   if [ "$old_effective" -eq 1 ] || [ "$new_effective" -eq 1 ]; then
     return 0
   fi
@@ -233,8 +233,9 @@ handle_config_changes() {
   changed_packages="$1"
   old_state_file="$2"
   new_state_file="$3"
-  kill_list_file="$LOGS_DIR/.config_kill_packages.tmp"
-  : > "$kill_list_file"
+  should_refresh_runtime=0
+
+  sync_shared_config_dir
 
   # 变更处理前刷新一次 UID 映射，避免共享 UID 关系过期。
   refresh_uid_map
@@ -244,10 +245,8 @@ handle_config_changes() {
 
     old_line=$(get_state_line "$old_state_file" "$package_name")
     new_line=$(get_state_line "$new_state_file" "$package_name")
-    should_kill_source=0
-    if should_force_stop_by_state "$old_line" "$new_line"; then
-      should_kill_source=1
-      echo "$package_name" >> "$kill_list_file"
+    if should_refresh_runtime_by_state "$old_line" "$new_line"; then
+      should_refresh_runtime=1
     fi
 
     uid=$(get_uid_by_package "$package_name")
@@ -266,39 +265,21 @@ handle_config_changes() {
         continue
       fi
 
-      # 同 UID 配置保持生效时，来源包生效变更也会触发重启，避免进程状态不一致。
-      if should_force_stop_by_state "$shared_old_line" "$shared_new_line"; then
-        echo "$shared_package" >> "$kill_list_file"
-        continue
-      fi
-
-      if [ "$should_kill_source" -eq 1 ]; then
-        shared_old_effective=$(get_state_effective "$shared_old_line")
-        shared_new_effective=$(get_state_effective "$shared_new_line")
-        if [ "$shared_old_effective" -eq 1 ] || [ "$shared_new_effective" -eq 1 ]; then
-          echo "$shared_package" >> "$kill_list_file"
-        fi
+      if should_refresh_runtime_by_state "$shared_old_line" "$shared_new_line"; then
+        should_refresh_runtime=1
       fi
     done
   done
 
-  if [ ! -s "$kill_list_file" ]; then
-    rm -f "$kill_list_file"
-    return 0
+  if [ "$should_refresh_runtime" -eq 1 ]; then
+    log -p i -t Boot "config mirrored for hot reload"
   fi
-
-  sort -u -o "$kill_list_file" "$kill_list_file" 2>/dev/null
-  while IFS= read -r package_name; do
-    [ -n "$package_name" ] || continue
-    log -p i -t Boot "auto force-stop after config change: pkg=$package_name"
-  done < "$kill_list_file"
-  force_stop_packages_from_file "$kill_list_file"
-  rm -f "$kill_list_file"
 }
 
 start_package_event_collector() {
   (
     mkdir -p "$APPS_CONFIG_DIR"
+    sync_shared_config_dir
     sync_uninstalled_app_configs
 
     while true; do
@@ -336,11 +317,12 @@ start_config_event_collector() {
     # 启动时建立状态基线，避免把旧配置当作新增事件处理。
     build_config_state_file "$CONFIG_STATE_FILE"
     mkdir -p "$APPS_CONFIG_DIR"
+    sync_shared_config_dir
 
     # inotifyd 监听配置目录，事件通过管道传给处理循环。
     # w=写入关闭 c=内容修改 m=新建 d=删除 n=移入
     while true; do
-      inotifyd - "$APPS_CONFIG_DIR":wcmdn 2>/dev/null |
+      inotifyd - "$APPS_CONFIG_DIR":wcmdn "$CONFIG_DIR":wcmdn 2>/dev/null |
       while IFS= read -r event_line; do
         # 仅处理 .json 文件事件
         case "$event_line" in
@@ -350,6 +332,16 @@ start_config_event_collector() {
 
         # 去抖：读取 1 秒内的后续事件一起处理
         while read -t 1 -r _; do :; done
+
+        sync_shared_config_dir
+        sync_monitor_collector
+        sync_debug_collectors
+
+        case "$event_line" in
+          *"global.json")
+            continue
+            ;;
+        esac
 
         if [ -f "$CONFIG_STATE_FILE" ]; then
           cp "$CONFIG_STATE_FILE" "$tmp_old_state"
