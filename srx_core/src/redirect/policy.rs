@@ -1,5 +1,7 @@
 // 系统代写与共享 UID 策略
-use crate::platform::module_paths::SYSTEM_WRITER_UIDS_FILE;
+use crate::platform::module_paths::{
+    MODULE_SYSTEM_WRITER_UIDS_FILE, SHARED_SYSTEM_WRITER_UIDS_FILE,
+};
 use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -14,6 +16,10 @@ const DOWNLOAD_PROVIDER: &str = "com.android.providers.downloads";
 const DOWNLOAD_PROVIDER_UI: &str = "com.android.providers.downloads.ui";
 const EXTERNAL_STORAGE_PROVIDER: &str = "com.android.externalstorage";
 const MTP_PACKAGE: &str = "com.android.mtp";
+const SYSTEM_WRITER_UID_FILE_CANDIDATES: [&str; 2] = [
+    SHARED_SYSTEM_WRITER_UIDS_FILE,
+    MODULE_SYSTEM_WRITER_UIDS_FILE,
+];
 
 #[derive(Default)]
 struct SharedUidState {
@@ -197,22 +203,27 @@ fn is_shared_uid(uid: i32, packages_by_uid: &HashMap<i32, Vec<String>>) -> bool 
 
 // 基于 mtime 与文件大小
 fn compute_uid_file_fingerprint() -> u64 {
-    let Ok(meta) = std::fs::metadata(SYSTEM_WRITER_UIDS_FILE) else {
-        return 0;
-    };
-    let size = meta.len();
-    let modified = meta
-        .modified()
-        .ok()
-        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
-        .map(|duration| duration.as_nanos() as u64)
-        .unwrap_or(0);
-    size ^ modified
+    for (index, path) in SYSTEM_WRITER_UID_FILE_CANDIDATES.iter().enumerate() {
+        let Ok(meta) = std::fs::metadata(path) else {
+            continue;
+        };
+        let size = meta.len();
+        let modified = meta
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+            .map(|duration| duration.as_nanos() as u64)
+            .unwrap_or(0);
+        return size ^ modified ^ ((index as u64 + 1) << 60);
+    }
+    0
 }
 
 fn load_shared_uid_cache(state: &mut SharedUidState, fingerprint: u64) {
-    let file = File::open(SYSTEM_WRITER_UIDS_FILE);
-    let Ok(file) = file else {
+    let file = SYSTEM_WRITER_UID_FILE_CANDIDATES
+        .iter()
+        .find_map(|path| File::open(path).ok());
+    let Some(file) = file else {
         state.uid_by_package.clear();
         state.packages_by_uid.clear();
         state.system_writer_shared_uids.clear();
