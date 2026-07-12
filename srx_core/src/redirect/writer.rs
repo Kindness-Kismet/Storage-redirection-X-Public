@@ -205,6 +205,10 @@ pub fn maybe_override_system_writer_caller_by_path(
     }
 
     let inferred_uid = policy::get_uid_for_package(&inferred);
+    if !effective_caller_package.is_empty() && inferred_uid != *effective_caller_uid {
+        return;
+    }
+
     if inferred_uid >= ANDROID_APP_UID_START {
         *effective_caller_uid = inferred_uid;
     }
