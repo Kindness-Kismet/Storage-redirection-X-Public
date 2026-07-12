@@ -31,6 +31,76 @@ pub fn should_allow_private_owner_sqlite_access(path: &str, caller_uid: i32) -> 
     should_allow_private_owner_sqlite_access_for_caller(path, caller_uid, &caller_package)
 }
 
+pub fn should_allow_configured_real_path_access(path: &str, caller_uid: i32) -> bool {
+    if caller_uid < ANDROID_APP_UID_START {
+        return false;
+    }
+
+    let user_id = platform::user_id_from_uid(caller_uid);
+    let normalized_path = normalize_fuse_storage_path(path, user_id);
+    if normalized_path.is_empty()
+        || paths::has_unsafe_segments(&normalized_path)
+        || paths::extract_user_id_from_storage_path(&normalized_path) != user_id
+    {
+        return false;
+    }
+
+    let mut packages = policy::get_packages_for_uid(caller_uid);
+    if packages.is_empty() {
+        policy::refresh_shared_uid_cache();
+        packages = policy::get_packages_for_uid(caller_uid);
+    }
+    packages.sort();
+    packages.dedup();
+
+    let config = SettingsHub::instance();
+    for package in packages {
+        if package.is_empty()
+            || policy::is_media_intermediate_package(&package)
+            || policy::is_system_writer_package(&package)
+        {
+            continue;
+        }
+
+        let excluded_paths = config.get_excluded_real_paths(&package, caller_uid);
+        if excluded_paths
+            .iter()
+            .any(|rule| paths::matches(rule, &normalized_path, true))
+        {
+            continue;
+        }
+
+        let allowed_paths = config.get_allowed_real_paths(&package, caller_uid);
+        if !allowed_paths
+            .iter()
+            .any(|rule| paths::matches(rule, &normalized_path, true))
+        {
+            continue;
+        }
+
+        return true;
+    }
+
+    false
+}
+
+fn normalize_fuse_storage_path(path: &str, user_id: i32) -> String {
+    if path.is_empty() || user_id < 0 {
+        return String::new();
+    }
+
+    let normalized = paths::normalize(path);
+    if paths::extract_user_id_from_storage_path(&normalized) >= 0 {
+        return normalized;
+    }
+
+    let relative = normalized.trim_start_matches('/');
+    if relative.is_empty() {
+        return String::new();
+    }
+    paths::normalize(&format!("/storage/emulated/{}/{}", user_id, relative))
+}
+
 pub fn should_allow_private_owner_sqlite_access_for_caller(
     path: &str,
     caller_uid: i32,

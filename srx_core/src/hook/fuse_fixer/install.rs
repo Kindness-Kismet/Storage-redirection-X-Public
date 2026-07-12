@@ -393,7 +393,9 @@ fn should_allow_srx_fuse_access(bytes: &[u8], uid: u32) -> bool {
     let Ok(path) = std::str::from_utf8(bytes) else {
         return false;
     };
-    media_fuse::should_allow_private_owner_sqlite_access(path, uid as i32)
+    let caller_uid = uid as i32;
+    media_fuse::should_allow_configured_real_path_access(path, caller_uid)
+        || media_fuse::should_allow_private_owner_sqlite_access(path, caller_uid)
 }
 
 fn should_force_userspace(bytes: &[u8]) -> bool {
