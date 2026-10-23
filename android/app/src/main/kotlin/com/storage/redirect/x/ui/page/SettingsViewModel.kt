@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@androidx.compose.runtime.Immutable
 data class SettingsUiState(
     val isLogsPageVisible: Boolean = false,
     val isLicensesPageVisible: Boolean = false,
@@ -29,6 +30,7 @@ data class SettingsUiState(
 
 sealed class SettingsUiEvent {
     data class BackupFinished(val result: BackupExportResult) : SettingsUiEvent()
+
     data class RestoreFinished(val result: RestoreResult) : SettingsUiEvent()
 }
 

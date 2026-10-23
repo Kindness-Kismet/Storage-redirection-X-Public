@@ -2,16 +2,16 @@ package com.storage.redirect.x.data.cache
 
 import android.content.pm.PackageManager
 import androidx.compose.runtime.getValue
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.storage.redirect.x.BuildConfig
 import com.storage.redirect.x.data.model.RedirectConfig
 import com.storage.redirect.x.data.repository.ConfigRepository
 import com.storage.redirect.x.data.repository.ModuleRepository
-import com.storage.redirect.x.BuildConfig
 import com.storage.redirect.x.ui.component.ModuleStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // 主页数据缓存，优先从 SharedPreferences 恢复避免 UI 闪烁
 // 后台刷新后持久化新值
@@ -25,10 +25,13 @@ object HomeDataCache {
 
     var moduleStatus by mutableStateOf(ModuleStatus.LOADING)
         private set
+
     var moduleVersion by mutableStateOf(BuildConfig.VERSION_NAME)
         private set
+
     var redirectedAppsCount by mutableStateOf("--")
         private set
+
     var redirectCount by mutableIntStateOf(0)
         private set
 
@@ -55,8 +58,9 @@ object HomeDataCache {
         configRepo: ConfigRepository,
         packageManager: PackageManager,
         selfPackage: String,
+        force: Boolean = false,
     ) {
-        if (loaded) return
+        if (loaded && !force) return
 
         val isInstalled = moduleRepo.isModuleInstalled()
         moduleStatus = if (isInstalled) ModuleStatus.INSTALLED else ModuleStatus.NOT_INSTALLED
@@ -66,13 +70,15 @@ object HomeDataCache {
         }
 
         val config: RedirectConfig = configRepo.load(0)
-        val installedPackages = withContext(Dispatchers.IO) {
-            packageManager.getInstalledApplications(0)
-                .asSequence()
-                .map { it.packageName }
-                .filter { it != selfPackage }
-                .toHashSet()
-        }
+        val installedPackages =
+            withContext(Dispatchers.IO) {
+                packageManager
+                    .getInstalledApplications(0)
+                    .asSequence()
+                    .map { it.packageName }
+                    .filter { it != selfPackage }
+                    .toHashSet()
+            }
         redirectedAppsCount = config.redirectApps.count { it in installedPackages }.toString()
         redirectCount = moduleRepo.loadRedirectCount()
 

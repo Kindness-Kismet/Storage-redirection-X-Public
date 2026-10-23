@@ -4,374 +4,256 @@ import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Apps
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.storage.redirect.x.data.cache.AppPreferences
 import com.storage.redirect.x.data.service.RootService
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.storage.redirect.x.data.cache.PreferenceKeys
-import com.storage.redirect.x.ui.component.bottombar.AppNavigationBar
-import com.storage.redirect.x.ui.component.bottombar.BottomBarAppearanceState
-import com.storage.redirect.x.ui.component.bottombar.BottomBarBlurMode
-import com.storage.redirect.x.ui.component.bottombar.FloatingBottomBar
-import com.storage.redirect.x.ui.component.bottombar.FloatingBottomBarTab
-import com.storage.redirect.x.ui.page.AppsPage
-import com.storage.redirect.x.ui.page.FileMonitorPage
-import com.storage.redirect.x.ui.page.HomePage
-import com.storage.redirect.x.ui.page.PermissionPage
-import com.storage.redirect.x.ui.page.RuleConfigPage
-import com.storage.redirect.x.ui.page.SettingsPage
-import com.storage.redirect.x.ui.page.TemplatesPage
-import com.storage.redirect.x.ui.theme.AppTheme
-import com.storage.redirect.x.ui.theme.AppThemeController
-import com.storage.redirect.x.ui.theme.AppThemeSettings
-import com.storage.redirect.x.ui.theme.LocalEnableBlur
-import com.storage.redirect.x.ui.theme.UiMode
-import com.storage.redirect.x.ui.theme.isInDarkTheme
+import com.storage.redirect.x.ui.navigation.*
+import com.storage.redirect.x.ui.page.*
+import com.storage.redirect.x.ui.theme.*
+import com.storage.redirect.x.ui.util.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.*
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.*
+import top.yukonga.miuix.kmp.nav.core.*
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-private const val KEY_PERMISSION_GRANTED = "permission_granted"
-private val FLOATING_BOTTOM_BAR_OVERLAY_PADDING = 76.dp
-
-// Detail 页面路由
-data class DetailRoute(val packageName: String, val appName: String, val userId: Int)
+import top.yukonga.miuix.kmp.utils.PagerGestureNestedScrollConnection
+import top.yukonga.miuix.kmp.utils.PagerInterceptionMode
+import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
+import top.yukonga.miuix.kmp.utils.pagerGestureOverride
+import top.yukonga.miuix.kmp.utils.springAnimateToPage
 
 @Composable
 fun App() {
     val context = LocalContext.current
-    var themeSettings by remember { mutableStateOf(AppThemeController.readSettings()) }
-
-    fun updateThemeSettings(settings: AppThemeSettings) {
-        themeSettings = settings
-        AppThemeController.writeSettings(settings)
+    var theme by remember { mutableStateOf(AppThemeController.readSettings()) }
+    val platformDensity = LocalDensity.current
+    val density =
+        remember(platformDensity, theme.pageScale) {
+            Density(platformDensity.density * theme.pageScale, platformDensity.fontScale)
+        }
+    val onThemeChange: (AppThemeSettings) -> Unit = {
+        theme = it
+        AppThemeController.writeSettings(it)
     }
-
-    val systemDensity = LocalDensity.current
-    val density = remember(systemDensity, themeSettings.pageScale) {
-        Density(systemDensity.density * themeSettings.pageScale, systemDensity.fontScale)
-    }
-
     CompositionLocalProvider(
         LocalDensity provides density,
-        LocalEnableBlur provides themeSettings.enableBlur,
+        LocalPlatformDensity provides platformDensity,
+        LocalEnableBlur provides theme.enableBlur,
+        LocalTopBarBlurStyle provides theme.topBarBlurStyle,
     ) {
-    AppTheme(settings = themeSettings) {
-        // 根据主题动态切换状态栏和导航栏图标颜色
-        val view = LocalView.current
-        val isDark = isInDarkTheme(themeSettings.colorMode)
-        SideEffect {
-            val window = (view.context as Activity).window
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !isDark
-                isAppearanceLightNavigationBars = !isDark
+        AppTheme(theme) {
+            val view = LocalView.current
+            val dark = LocalAppDarkMode.current
+            SideEffect {
+                WindowCompat.getInsetsController((view.context as Activity).window, view).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+            var granted by remember {
+                mutableStateOf<Boolean?>(
+                    if (AppPreferences.getBoolean("permission_granted")) true else null
+                )
+            }
+            LaunchedEffect(Unit) {
+                val notification =
+                    Build.VERSION.SDK_INT < 33 ||
+                        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                            PackageManager.PERMISSION_GRANTED
+                granted = RootService.isRootAvailable() && notification
+                AppPreferences.put("permission_granted", granted == true)
+            }
+            if (granted == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                return@AppTheme
+            }
+            if (granted == false) {
+                PermissionPage(
+                    onAllGranted = {
+                        granted = true
+                        AppPreferences.put("permission_granted", true)
+                    }
+                )
+                return@AppTheme
+            }
+            val navigator = rememberAppNavigator()
+            CompositionLocalProvider(LocalNavigator provides navigator) {
+                NavDisplay(
+                    backStack = navigator.backStack,
+                    onBack = navigator::pop,
+                    effects = NavDisplayEffects(cornerClipRadius = rememberNavSystemCornerRadius()),
+                    modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
+                ) {
+                    entry<ScreenRoute> { route ->
+                        when (route.page) {
+                            "main" -> MainPage()
+                            "theme" -> ColorPalettePage(theme, onThemeChange, navigator::pop)
+                            "logs" -> LogsPage(navigator::pop)
+                            "licenses" -> OpenSourceLicensesPage(navigator::pop)
+                            "about" -> AboutPage(onBack = navigator::pop)
+                            "update" -> UpdatePage(navigator::pop)
+                            "templates" -> TemplatesPage(navigator::pop)
+                            "rules" ->
+                                RuleConfigPage(route.packageName, route.appName, route.userId) {
+                                    navigator.pop()
+                                }
+                        }
+                    }
+                }
             }
         }
+    }
+}
 
-        // 权限门禁：优先读取持久化缓存，已授权则直接进入主界面
-        val cachedGrant = AppPreferences.getBoolean(KEY_PERMISSION_GRANTED)
-        var permissionState by remember { mutableStateOf<Boolean?>(if (cachedGrant) true else null) }
-
-        // 后台校验权限
-        LaunchedEffect(Unit) {
-            val hasNotification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-                    PackageManager.PERMISSION_GRANTED
-            } else {
-                true
+@Composable
+internal fun MainPage() {
+    val navigator = LocalNavigator.current
+    val pager = rememberPagerState(pageCount = { 4 })
+    val scope = rememberCoroutineScope()
+    var selected by remember { mutableIntStateOf(pager.currentPage) }
+    var navigationJob by remember { mutableStateOf<Job?>(null) }
+    val select: (Int) -> Unit = { index ->
+        if (selected != index) {
+            navigationJob?.cancel()
+            selected = index
+            navigationJob = scope.launch {
+                val thisJob = coroutineContext.job
+                try {
+                    pager.springAnimateToPage(index)
+                } finally {
+                    if (navigationJob == thisJob) selected = pager.currentPage
+                }
             }
-            val hasRoot = RootService.isRootAvailable()
-            val granted = hasRoot && hasNotification
-
-            AppPreferences.put(KEY_PERMISSION_GRANTED, granted)
-            permissionState = granted
         }
-
-        // 首次安装且未缓存：等待权限检查完成
-        if (permissionState == null) return@AppTheme
-
-        // 权限不足：显示权限引导页
-        if (permissionState == false) {
-            PermissionPage(onAllGranted = {
-                AppPreferences.put(KEY_PERMISSION_GRANTED, true)
-                permissionState = true
-            })
-            return@AppTheme
-        }
-
-        var detailRoute by remember { mutableStateOf<DetailRoute?>(null) }
-        var isTemplatesPageVisible by remember { mutableStateOf(false) }
-        // 从配置页返回时递增，驱动应用列表刷新配置
-        var configVersion by remember { mutableIntStateOf(0) }
-        var bottomBarAppearance by remember {
-            mutableStateOf(BottomBarAppearanceState.fromPreferences())
-        }
-        // 任一子页的顶栏下拉菜单展开时，禁用底栏以避免误触
-        var isAnyMenuOpen by remember { mutableStateOf(false) }
-
-        fun closeDetail(modified: Boolean) {
-            detailRoute = null
-            if (modified) configVersion++
-        }
-
-        // 底栏导航项
-        val navKeys = listOf("home", "apps", "monitor", "settings")
-        val navIcons = remember {
-            listOf(
-                Icons.Rounded.Home,
-                Icons.Rounded.Apps,
-                Icons.Rounded.Folder,
-                Icons.Rounded.Settings,
-            )
-        }
-        val navLabels = listOf(
+    }
+    LaunchedEffect(pager.settledPage) {
+        if (navigationJob?.isActive != true) selected = pager.settledPage
+    }
+    BackHandler(enabled = selected != 0) { select(0) }
+    val labels =
+        listOf(
             stringResource(R.string.nav_home),
             stringResource(R.string.nav_apps),
             stringResource(R.string.nav_monitor),
             stringResource(R.string.nav_settings),
         )
-
-        val pagerState = rememberPagerState(pageCount = { navKeys.size })
-        var selectedTabIndex by remember { mutableIntStateOf(pagerState.currentPage) }
-        val scope = rememberCoroutineScope()
-
-        LaunchedEffect(pagerState.settledPage) {
-            selectedTabIndex = pagerState.settledPage
-        }
-
-        // 底栏配色按 uiMode 取色：Material 走 M3 colorScheme，Miuix 走 Miuix colorScheme
-        val isMaterialMode = themeSettings.uiMode == UiMode.Material
-        val bottomBarSurfaceColor = if (isMaterialMode) {
-            MaterialTheme.colorScheme.surface
-        } else {
-            MiuixTheme.colorScheme.surface
-        }
-        val bottomBarContainerColor = if (isMaterialMode) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            MiuixTheme.colorScheme.surfaceContainer
-        }
-        val bottomBarAccentColor = if (isMaterialMode) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MiuixTheme.colorScheme.primary
-        }
-        val bottomBarContentColor = if (isMaterialMode) {
-            MaterialTheme.colorScheme.onSurface
-        } else {
-            MiuixTheme.colorScheme.onSurface
-        }
-        val bottomBarBlurMode = bottomBarAppearance.blurMode
-        val bottomBarBackdrop = rememberLayerBackdrop {
-            drawRect(bottomBarSurfaceColor)
-            drawContent()
-        }
-        val floatingBottomBarModifier = Modifier
-            .padding(bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
-        val overlayBottomPadding = if (bottomBarAppearance.isFloatingBottomBarEnabled) {
-            FLOATING_BOTTOM_BAR_OVERLAY_PADDING +
-                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        } else {
-            0.dp
-        }
-
-        Box(
-            modifier = Modifier.semantics { testTagsAsResourceId = true },
-        ) {
-            Scaffold(
-                bottomBar = {
-                    if (bottomBarAppearance.usesBottomBarSlotPadding) {
-                        AppNavigationBar(
-                            labels = navLabels,
-                            icons = navIcons,
-                            selectedIndex = selectedTabIndex,
-                            enabled = !isAnyMenuOpen,
-                            onSelect = { index ->
-                                selectedTabIndex = index
-                                scope.launch { pagerState.animateScrollToPage(index) }
-                            },
+    val icons =
+        listOf(MiuixIcons.Sidebar, MiuixIcons.Tune, MiuixIcons.UploadCloud, MiuixIcons.Settings)
+    val keys = listOf("home", "apps", "monitor", "settings")
+    val wide = rememberIsWideScreen()
+    val backdrop = rememberBlurBackdrop()
+    val barColor = if (backdrop != null) Color.Transparent else MiuixTheme.colorScheme.surface
+    val pagerContent: @Composable (Modifier, androidx.compose.ui.unit.Dp) -> Unit =
+        { modifier, bottomPadding ->
+            HorizontalPager(
+                state = pager,
+                modifier =
+                    modifier
+                        .pagerGestureOverride(
+                            pager,
+                            mode = PagerInterceptionMode.CrossAxisInterceptor,
                         )
-                    }
-                },
-                // 主内容仅消费横向安全区，顶部间距由页面顶栏自身处理
-                contentWindowInsets = WindowInsets.systemBars
-                    .add(WindowInsets.displayCutout)
-                    .only(WindowInsetsSides.Horizontal),
-            ) { padding ->
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier
-                        .padding(padding)
-                        .testTag("page_container_${navKeys[pagerState.settledPage]}")
-                        .then(
-                            if (bottomBarBlurMode == BottomBarBlurMode.Blur) {
-                                Modifier.layerBackdrop(bottomBarBackdrop)
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    verticalAlignment = Alignment.Top,
-                    beyondViewportPageCount = navKeys.size - 1,
-                ) { page ->
-                    when (page) {
-                        0 -> HomePage(
-                            themeMode = themeSettings.colorMode.value,
-                            bottomInnerPadding = overlayBottomPadding,
-                            onMenuStateChange = { isAnyMenuOpen = it },
-                        )
-                        1 -> AppsPage(
-                            onAppClick = { packageName, appName, userId ->
-                                detailRoute = DetailRoute(packageName, appName, userId)
+                        .then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+                userScrollEnabled = false,
+                pageNestedScrollConnection = PagerGestureNestedScrollConnection,
+                verticalAlignment = Alignment.Top,
+                flingBehavior =
+                    PagerDefaults.flingBehavior(
+                        pager,
+                        snapAnimationSpec = PagerNavigationSpringSpec,
+                    ),
+                overscrollEffect = null,
+            ) { page ->
+                when (page) {
+                    0 -> HomePage(bottomInnerPadding = bottomPadding)
+                    1 ->
+                        AppsPage(
+                            onAppClick = { pkg, name, user ->
+                                navigator.push(ScreenRoute("rules", pkg, name, user))
                             },
-                            configVersion = configVersion,
-                            bottomInnerPadding = overlayBottomPadding,
-                            onMenuStateChange = { isAnyMenuOpen = it },
-                            onTemplatesClick = { isTemplatesPageVisible = true },
+                            configVersion = navigator.configVersion,
+                            bottomInnerPadding = bottomPadding,
+                            onTemplatesClick = { navigator.push("templates") },
                         )
-                        2 -> FileMonitorPage(bottomInnerPadding = overlayBottomPadding)
-                        3 -> SettingsPage(
-                            themeSettings = themeSettings,
-                            onThemeSettingsChange = ::updateThemeSettings,
-                            bottomBarAppearance = bottomBarAppearance,
-                            onBottomBarAppearanceChange = { state ->
-                                bottomBarAppearance = state
-                                AppPreferences.put(
-                                    PreferenceKeys.FLOATING_BOTTOM_BAR_ENABLED,
-                                    state.isFloatingBottomBarEnabled,
-                                )
-                                AppPreferences.put(
-                                    PreferenceKeys.FLOATING_BOTTOM_BAR_BLUR_ENABLED,
-                                    state.isFloatingBottomBarBlurEnabled,
-                                )
-                            },
-                            bottomInnerPadding = overlayBottomPadding,
+                    2 -> FileMonitorPage(bottomInnerPadding = bottomPadding)
+                    3 -> SettingsPage(bottomInnerPadding = bottomPadding)
+                }
+            }
+        }
+    if (wide) {
+        val railState = rememberNavigationRailState()
+        Scaffold { _ ->
+            Row(Modifier.fillMaxSize()) {
+                NavigationRail(state = railState) {
+                    icons.forEachIndexed { i, icon ->
+                        NavigationRailItem(
+                            selected = selected == i,
+                            onClick = { select(i) },
+                            icon = if (i == 0) MiuixIcons.Home else icon,
+                            label = labels[i],
                         )
                     }
                 }
+                pagerContent(
+                    Modifier.weight(1f)
+                        .fillMaxHeight()
+                        .consumeWindowInsets(
+                            WindowInsets.displayCutout
+                                .union(WindowInsets.navigationBars)
+                                .only(WindowInsetsSides.Start)
+                        )
+                        .windowInsetsPadding(
+                            WindowInsets.systemBars
+                                .union(WindowInsets.displayCutout)
+                                .only(WindowInsetsSides.End)
+                        ),
+                    0.dp,
+                )
             }
-
-            if (bottomBarAppearance.isFloatingBottomBarEnabled) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.BottomCenter,
-                ) {
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        FloatingBottomBar(
-                            modifier = floatingBottomBarModifier.testTag("bottom_bar"),
-                            selectedIndex = selectedTabIndex,
-                            tabTags = navKeys,
-                            onSelected = { index ->
-                                selectedTabIndex = index
-                                scope.launch { pagerState.animateScrollToPage(index) }
-                            },
-                            backdrop = bottomBarBackdrop,
-                            tabsCount = navKeys.size,
-                            isBlurEnabled = bottomBarAppearance.isBlurEffectActive,
-                            isDarkTheme = isDark,
-                            enabled = !isAnyMenuOpen,
-                            accentColor = bottomBarAccentColor,
-                            containerColor = bottomBarContainerColor,
-                        ) {
-                            navIcons.forEachIndexed { index, icon ->
-                                FloatingBottomBarTab(
-                                    onClick = {
-                                        selectedTabIndex = index
-                                        scope.launch { pagerState.animateScrollToPage(index) }
-                                    },
-                                    enabled = !isAnyMenuOpen,
-                                    modifier = Modifier
-                                        .defaultMinSize(minWidth = 76.dp)
-                                        .testTag("bottom_tab_${navKeys[index]}"),
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = navLabels[index],
-                                        tint = bottomBarContentColor,
-                                    )
-                                    Text(
-                                        text = navLabels[index],
-                                        fontSize = 11.sp,
-                                        lineHeight = 14.sp,
-                                        color = bottomBarContentColor,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Visible,
-                                    )
-                                }
-                            }
+        }
+    } else {
+        Scaffold(
+            bottomBar = {
+                BlurredBar(backdrop, useProgressive = false) {
+                    NavigationBar(
+                        color = barColor,
+                        showDivider = false,
+                        modifier = Modifier.testTag("bottom_bar"),
+                    ) {
+                        icons.forEachIndexed { i, icon ->
+                            NavigationBarItem(
+                                selected = selected == i,
+                                onClick = { select(i) },
+                                icon = icon,
+                                label = labels[i],
+                                modifier = Modifier.testTag("nav_${keys[i]}"),
+                            )
                         }
                     }
                 }
             }
-
-            if (isTemplatesPageVisible) {
-                TemplatesPage(onBack = {
-                    isTemplatesPageVisible = false
-                    configVersion++
-                })
-            }
-
-            detailRoute?.let { route ->
-                RuleConfigPage(
-                    packageName = route.packageName,
-                    appName = route.appName,
-                    userId = route.userId,
-                    onBack = { modified -> closeDetail(modified) }
-                )
-            }
+        ) { padding ->
+            pagerContent(Modifier.fillMaxSize(), padding.calculateBottomPadding())
         }
-    }
     }
 }

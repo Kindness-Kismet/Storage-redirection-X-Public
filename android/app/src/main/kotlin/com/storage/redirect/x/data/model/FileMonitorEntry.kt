@@ -4,6 +4,7 @@ package com.storage.redirect.x.data.model
 // 原生侧日志格式（`|` 分隔，共 7~8 字段）：
 // 时间戳|包名|调用方|操作类型|路径|ret=返回值|errno=错误码[|额外信息]
 // 包名/调用方格式：单包名 或 pkg1,pkg2,pkg3（共享 UID 进程）
+@androidx.compose.runtime.Immutable
 data class FileMonitorEntry(
     val timestamp: String,
     val packageName: String,
@@ -14,7 +15,7 @@ data class FileMonitorEntry(
     val errorNo: Int? = null,
     val extra: String? = null,
     // 共享 UID 场景下，指定当前条目对应的具体包名
-    val resolvedPackage: String? = null
+    val resolvedPackage: String? = null,
 ) {
     // 保留 /storage/emulated/<user_id>/ 前缀以显式标注用户
     val displayPath: String
@@ -34,23 +35,28 @@ data class FileMonitorEntry(
 
     // 解析共享 UID 中的所有包名（优先从 packageName 解析）
     val sharedUidPackages: List<String>
-        get() = when {
-            isSharedUidPackage -> packageName.split(",").filter { it.isNotBlank() }
-            isSharedUidCaller -> caller.split(",").filter { it.isNotBlank() }
-            else -> emptyList()
-        }
+        get() =
+            when {
+                isSharedUidPackage -> packageName.split(",").filter { it.isNotBlank() }
+                isSharedUidCaller -> caller.split(",").filter { it.isNotBlank() }
+                else -> emptyList()
+            }
 
     // 有效的包名（优先使用 resolvedPackage）
     private val effectivePackage: String
-        get() = resolvedPackage ?: if (isSharedUidPackage) sharedUidPackages.firstOrNull() ?: packageName else packageName
+        get() =
+            resolvedPackage
+                ?: if (isSharedUidPackage) sharedUidPackages.firstOrNull() ?: packageName
+                else packageName
 
     // 有效的调用方（用于判断代写场景）
     private val effectiveCaller: String
         get() = if (isSharedUidCaller) sharedUidPackages.firstOrNull() ?: caller else caller
 
-    private val extraFields: Map<String, String> by lazy(LazyThreadSafetyMode.NONE) {
-        parseExtraFields(extra)
-    }
+    private val extraFields: Map<String, String> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            parseExtraFields(extra)
+        }
 
     private val identifyMethod: String
         get() = parseExtraField("identify_method").orEmpty()
@@ -58,9 +64,10 @@ data class FileMonitorEntry(
     private val identifyReliability: String
         get() = parseExtraField("identify_reliability").orEmpty()
 
-    private val subjectResolution: SubjectResolution by lazy(LazyThreadSafetyMode.NONE) {
-        resolveSubjectResolution()
-    }
+    private val subjectResolution: SubjectResolution by
+        lazy(LazyThreadSafetyMode.NONE) {
+            resolveSubjectResolution()
+        }
 
     val isDelegatedBySystemWriter: Boolean
         get() = subjectResolution.isDelegated
@@ -261,11 +268,12 @@ data class FileMonitorEntry(
                 path = parts[4],
                 resultCode = resultCode,
                 errorNo = errorNo,
-                extra = if (parts.size > MIN_FIELD_COUNT) {
-                    parts.subList(MIN_FIELD_COUNT, parts.size).joinToString("|")
-                } else {
-                    null
-                },
+                extra =
+                    if (parts.size > MIN_FIELD_COUNT) {
+                        parts.subList(MIN_FIELD_COUNT, parts.size).joinToString("|")
+                    } else {
+                        null
+                    },
             )
         }
     }

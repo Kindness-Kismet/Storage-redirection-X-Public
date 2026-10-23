@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Match Mishka: Android 12 uses solid surfaces before the shader support gate. -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
     <!-- 获取完整已安装应用列表 -->
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"

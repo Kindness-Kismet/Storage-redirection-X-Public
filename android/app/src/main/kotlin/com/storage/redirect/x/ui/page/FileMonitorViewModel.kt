@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storage.redirect.x.data.model.FileMonitorEntry
 import com.storage.redirect.x.data.repository.FileMonitorRepository
+import kotlinx.collections.immutable.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,9 +14,10 @@ import kotlinx.coroutines.launch
 
 private const val DEFAULT_MONITOR_LINE_COUNT = 500
 
+@androidx.compose.runtime.Immutable
 data class FileMonitorUiState(
     val isLoading: Boolean = true,
-    val entries: List<FileMonitorEntry> = emptyList(),
+    val entries: ImmutableList<FileMonitorEntry> = persistentListOf(),
     val searchQuery: String = "",
     val opTypeIndex: Int = 0,
     val isOpTypeMenuVisible: Boolean = false,
@@ -22,11 +25,13 @@ data class FileMonitorUiState(
 
 // 文件监视页状态管理，避免在 Composable 中堆叠业务逻辑。
 class FileMonitorViewModel(
-    private val monitorRepo: FileMonitorRepository = FileMonitorRepository(),
+    private val monitorRepo: FileMonitorRepository = FileMonitorRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FileMonitorUiState())
     val uiState: StateFlow<FileMonitorUiState> = _uiState.asStateFlow()
+
+    private var refreshJob: Job? = null
 
     init {
         refresh()
@@ -34,9 +39,10 @@ class FileMonitorViewModel(
 
     // 刷新最新监视记录。
     fun refresh() {
-        viewModelScope.launch {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val entries = monitorRepo.loadEntries(DEFAULT_MONITOR_LINE_COUNT) ?: emptyList()
+            val entries = monitorRepo.loadEntries(DEFAULT_MONITOR_LINE_COUNT) ?: persistentListOf()
             _uiState.update { it.copy(entries = entries, isLoading = false) }
         }
     }

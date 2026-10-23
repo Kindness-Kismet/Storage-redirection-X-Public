@@ -3,8 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val appVersionName: String by project
-val appVersionCode: String by project
+val appVersionName = project.property("appVersionName").toString()
+val appVersionCode = project.property("appVersionCode").toString()
 val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 
 android {
@@ -23,8 +23,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 
     buildFeatures {
@@ -49,38 +53,37 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
         }
     }
 }
 
 dependencies {
-    implementation(platform(libs.compose.bom))
-    implementation(libs.compose.ui)
-    implementation(libs.compose.foundation)
-    implementation(libs.compose.ui.tooling.preview)
-    debugImplementation(libs.compose.ui.tooling)
-
-    implementation(libs.compose.material.icons.extended)
-    implementation(libs.compose.material3)
-    implementation(libs.material.kolor)
-
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.core.ktx)
     implementation(libs.miuix)
     implementation(libs.miuix.icons)
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.blur)
+    implementation(libs.miuix.nav)
     implementation(libs.coroutines)
+    implementation(libs.immutable)
     implementation(libs.gson)
-    implementation(libs.backdrop)
-    implementation(libs.capsule)
     implementation(libs.hiddenapibypass)
 
     testImplementation(libs.junit4)
+    testImplementation(libs.robolectric)
+}
+
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "1024m"
+    maxParallelForks = 1
+    // Compose dispatchers and native windows must not span Robolectric test-class sandboxes.
+    forkEvery = 1
+    jvmArgs("-XX:+UseSerialGC")
 }

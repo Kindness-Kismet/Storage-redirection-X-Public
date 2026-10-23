@@ -34,9 +34,10 @@ fun ScaleDialog(
         summary = "80% - 110%",
         onDismissRequest = onDismissRequest,
         content = {
-            var text by remember(show) {
-                mutableStateOf((volumeState() * 100).toInt().toString())
-            }
+            var text by
+                remember(show) {
+                    mutableStateOf((volumeState() * 100).toInt().toString())
+                }
             TextField(
                 modifier = Modifier.padding(bottom = 16.dp),
                 value = text,
@@ -65,7 +66,7 @@ fun ScaleDialog(
                     onClick = onDismissRequest,
                     modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.width(20.dp))
+                Spacer(Modifier.width(8.dp))
                 TextButton(
                     text = stringResource(android.R.string.ok),
                     onClick = {
@@ -78,6 +79,6 @@ fun ScaleDialog(
                     colors = ButtonDefaults.textButtonColorsPrimary(),
                 )
             }
-        }
+        },
     )
 }

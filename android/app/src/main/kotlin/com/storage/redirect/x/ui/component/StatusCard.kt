@@ -1,229 +1,109 @@
 package com.storage.redirect.x.ui.component
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircleOutline
-import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.HourglassEmpty
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.storage.redirect.x.R
-import com.storage.redirect.x.ui.theme.isInDarkTheme
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
-import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
+import com.storage.redirect.x.ui.theme.RunState
+import com.storage.redirect.x.ui.theme.StatusColors
+import top.yukonga.miuix.kmp.basic.*
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-// 模块状态
-enum class ModuleStatus { LOADING, INSTALLED, NOT_INSTALLED, ERROR }
+enum class ModuleStatus {
+    LOADING,
+    INSTALLED,
+    NOT_INSTALLED,
+    ERROR,
+}
 
-// 模块状态卡片（双列布局）
+// Same two-column status geometry as Mishka's StatusSection.
 @Composable
-fun StatusCard(
-    status: ModuleStatus,
-    version: String,
-    redirectedAppsCount: String,
-    redirectCount: String,
-    themeMode: Int = 0,
-    errorMessage: String = "",
-    modifier: Modifier = Modifier
-) {
-    val statusInfo = when (status) {
-        ModuleStatus.INSTALLED -> StatusInfo(
-            icon = Icons.Rounded.CheckCircleOutline,
-            cardColor = when {
-                isDynamicColor -> colorScheme.secondaryContainer
-                isInDarkTheme(themeMode) -> Color(0xFF1A3825)
-                else -> Color(0xFFDFFAE4)
-            },
-            iconColor = if (isDynamicColor) {
-                colorScheme.primary.copy(alpha = 0.8f)
-            } else {
-                Color(0xFF36D167)
-            },
-            title = stringResource(R.string.home_module_installed),
-            subtitle = "${stringResource(R.string.home_version)}: $version"
+fun HomeStatusCards(status: ModuleStatus, version: String, apps: String, operations: String) {
+    val state =
+        when (status) {
+            ModuleStatus.INSTALLED -> RunState.Running
+            ModuleStatus.LOADING -> RunState.Pending
+            else -> RunState.Stopped
+        }
+    val title =
+        stringResource(
+            when (status) {
+                ModuleStatus.INSTALLED -> R.string.home_module_installed
+                ModuleStatus.LOADING -> R.string.common_loading
+                ModuleStatus.NOT_INSTALLED -> R.string.home_module_not_installed
+                ModuleStatus.ERROR -> R.string.common_error
+            }
         )
-        ModuleStatus.NOT_INSTALLED -> StatusInfo(
-            icon = Icons.Rounded.ErrorOutline,
-            cardColor = when {
-                isDynamicColor -> colorScheme.errorContainer
-                isInDarkTheme(themeMode) -> Color(0xFF310808)
-                else -> Color(0xFFF8E2E2)
-            },
-            iconColor = if (isDynamicColor) {
-                colorScheme.error.copy(alpha = 0.8f)
-            } else {
-                Color(0xFFF72727)
-            },
-            title = stringResource(R.string.home_module_not_installed),
-            subtitle = "${stringResource(R.string.home_version)}: $version"
-        )
-        ModuleStatus.ERROR -> StatusInfo(
-            icon = Icons.Rounded.ErrorOutline,
-            cardColor = when {
-                isDynamicColor -> colorScheme.errorContainer
-                isInDarkTheme(themeMode) -> Color(0xFF310808)
-                else -> Color(0xFFF8E2E2)
-            },
-            iconColor = if (isDynamicColor) {
-                colorScheme.error.copy(alpha = 0.8f)
-            } else {
-                Color(0xFFF72727)
-            },
-            title = stringResource(R.string.common_error),
-            subtitle = errorMessage
-        )
-        ModuleStatus.LOADING -> StatusInfo(
-            icon = Icons.Rounded.HourglassEmpty,
-            cardColor = colorScheme.secondaryContainer,
-            iconColor = colorScheme.secondary,
-            title = stringResource(R.string.common_loading),
-            subtitle = "${stringResource(R.string.home_version)}: $version"
-        )
-    }
-
+    val statusIcon =
+        if (status == ModuleStatus.INSTALLED) Icons.Rounded.CheckCircleOutline
+        else Icons.Rounded.RemoveCircleOutline
+    val tint = StatusColors.runState(state)
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Modifier.fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .padding(top = 12.dp, bottom = 6.dp)
+            .height(IntrinsicSize.Min)
+            .testTag("home_status"),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 左列：状态卡片（装饰图标 + 文字叠加）
         Card(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            colors = CardDefaults.defaultColors(color = statusInfo.cardColor)
+            Modifier.weight(1f).fillMaxHeight().testTag("home_module_status"),
+            colors = CardDefaults.defaultColors(color = StatusColors.runStateContainer(state)),
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // 装饰图标（偏移到右下角）
+            Box(Modifier.fillMaxSize()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .offset(38.dp, 45.dp),
-                    contentAlignment = Alignment.BottomEnd
+                    Modifier.fillMaxSize().offset(38.dp, 45.dp),
+                    contentAlignment = Alignment.BottomEnd,
                 ) {
-                    Icon(
-                        imageVector = statusInfo.icon,
-                        contentDescription = null,
-                        tint = statusInfo.iconColor,
-                        modifier = Modifier.size(170.dp)
-                    )
+                    Icon(statusIcon, null, Modifier.size(170.dp), tint = tint)
                 }
-                // 文字内容
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = statusInfo.title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Column(Modifier.fillMaxSize().padding(16.dp)) {
+                    Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = tint)
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = statusInfo.subtitle,
+                        "v$version",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }
             }
         }
-
-        // 右列：统计卡片
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                insideMargin = PaddingValues(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = stringResource(R.string.home_redirected_apps),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 15.sp,
-                        color = colorScheme.onSurfaceVariantSummary
-                    )
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = redirectedAppsCount,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onSurface
-                    )
-                }
-            }
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            MetricCard(
+                apps,
+                stringResource(R.string.home_redirected_apps),
+                Modifier.fillMaxWidth().weight(1f).testTag("home_redirected_apps"),
+            )
             Spacer(Modifier.height(12.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                insideMargin = PaddingValues(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = stringResource(R.string.home_redirect_count),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 15.sp,
-                        color = colorScheme.onSurfaceVariantSummary
-                    )
-                    Text(
-                        modifier = Modifier.fillMaxWidth(),
-                        text = redirectCount,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onSurface
-                    )
-                }
-            }
+            MetricCard(
+                operations,
+                stringResource(R.string.home_redirect_count),
+                Modifier.fillMaxWidth().weight(1f).testTag("home_redirect_count"),
+            )
         }
     }
 }
 
-// 状态信息数据类
-private data class StatusInfo(
-    val icon: ImageVector,
-    val cardColor: Color,
-    val iconColor: Color,
-    val title: String,
-    val subtitle: String
-)
+@Composable
+fun MetricCard(value: String, label: String, modifier: Modifier = Modifier) {
+    Card(modifier, insideMargin = PaddingValues(16.dp)) {
+        Text(label, fontSize = 13.sp, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+        Text(
+            value,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = MiuixTheme.colorScheme.onSurface,
+        )
+    }
+}

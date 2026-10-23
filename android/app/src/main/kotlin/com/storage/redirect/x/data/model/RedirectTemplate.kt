@@ -4,20 +4,23 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.util.UUID
+import kotlinx.collections.immutable.*
 
+@androidx.compose.runtime.Immutable
 data class RedirectTemplate(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val allowedRealPaths: List<String> = emptyList(),
-    val pathMappings: List<StoragePathMapping> = emptyList(),
+    val allowedRealPaths: ImmutableList<String> = persistentListOf(),
+    val pathMappings: ImmutableList<StoragePathMapping> = persistentListOf(),
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = createdAt,
 ) {
     fun normalized(): RedirectTemplate {
-        val cleanedPaths = allowedRealPaths
-            .mapNotNull { RedirectConfig.normalizeAllowedPath(it) }
-            .toSortedSet()
-            .toList()
+        val cleanedPaths =
+            allowedRealPaths
+                .mapNotNull { RedirectConfig.normalizeAllowedPath(it) }
+                .toSortedSet()
+                .toList()
         val mappingByRequest = linkedMapOf<String, StoragePathMapping>()
         for (mapping in pathMappings) {
             val requestPath = RedirectConfig.normalizeMappingPath(mapping.requestPath) ?: continue
@@ -27,8 +30,8 @@ data class RedirectTemplate(
         }
         return copy(
             name = name.trim(),
-            allowedRealPaths = cleanedPaths,
-            pathMappings = mappingByRequest.values.sortedBy { it.requestPath },
+            allowedRealPaths = cleanedPaths.toImmutableList(),
+            pathMappings = mappingByRequest.values.sortedBy { it.requestPath }.toImmutableList(),
         )
     }
 
@@ -53,20 +56,23 @@ data class RedirectTemplate(
         fun fromJson(json: JsonObject): RedirectTemplate? {
             val id = json.get("id")?.asString?.trim()?.takeIf { it.isNotEmpty() } ?: return null
             val name = json.get("name")?.asString?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-            val allowedRealPaths = json.getAsJsonArray("allowed_real_paths")
-                ?.mapNotNull { element ->
+            val allowedRealPaths =
+                json.getAsJsonArray("allowed_real_paths")?.mapNotNull { element ->
                     if (element.isJsonPrimitive && element.asJsonPrimitive.isString) {
                         element.asString.trim().takeIf { value -> value.isNotEmpty() }
                     } else {
                         null
                     }
-                }
-                ?: emptyList()
+                } ?: emptyList()
             val mappings = mutableListOf<StoragePathMapping>()
             val mappingsObj = json.get("path_mappings")
             if (mappingsObj != null && mappingsObj.isJsonObject) {
                 mappingsObj.asJsonObject.entrySet().forEach { (requestPathRaw, finalPathElement) ->
-                    if (!finalPathElement.isJsonPrimitive || !finalPathElement.asJsonPrimitive.isString) return@forEach
+                    if (
+                        !finalPathElement.isJsonPrimitive ||
+                            !finalPathElement.asJsonPrimitive.isString
+                    )
+                        return@forEach
                     val requestPath = requestPathRaw.trim()
                     val finalPath = finalPathElement.asString.trim()
                     if (requestPath.isNotEmpty() && finalPath.isNotEmpty()) {
@@ -75,29 +81,34 @@ data class RedirectTemplate(
                 }
             }
             return RedirectTemplate(
-                id = id,
-                name = name,
-                allowedRealPaths = allowedRealPaths,
-                pathMappings = mappings,
-                createdAt = json.get("created_at")?.asLong ?: System.currentTimeMillis(),
-                updatedAt = json.get("updated_at")?.asLong ?: System.currentTimeMillis(),
-            ).normalized()
+                    id = id,
+                    name = name,
+                    allowedRealPaths = allowedRealPaths.toImmutableList(),
+                    pathMappings = mappings.toImmutableList(),
+                    createdAt = json.get("created_at")?.asLong ?: System.currentTimeMillis(),
+                    updatedAt = json.get("updated_at")?.asLong ?: System.currentTimeMillis(),
+                )
+                .normalized()
         }
 
-        fun listFromJson(content: String): List<RedirectTemplate> {
-            if (content.isBlank()) return emptyList()
+        fun listFromJson(content: String): ImmutableList<RedirectTemplate> {
+            if (content.isBlank()) return persistentListOf()
             return try {
                 val root = JsonParser.parseString(content)
-                val array = when {
-                    root.isJsonArray -> root.asJsonArray
-                    root.isJsonObject -> root.asJsonObject.getAsJsonArray("templates")
-                    else -> null
-                } ?: return emptyList()
-                array.mapNotNull { element ->
-                    if (element.isJsonObject) fromJson(element.asJsonObject) else null
-                }.sortedBy { it.name.lowercase() }
+                val array =
+                    when {
+                        root.isJsonArray -> root.asJsonArray
+                        root.isJsonObject -> root.asJsonObject.getAsJsonArray("templates")
+                        else -> null
+                    } ?: return persistentListOf()
+                array
+                    .mapNotNull { element ->
+                        if (element.isJsonObject) fromJson(element.asJsonObject) else null
+                    }
+                    .sortedBy { it.name.lowercase() }
+                    .toImmutableList()
             } catch (_: Exception) {
-                emptyList()
+                persistentListOf()
             }
         }
     }
