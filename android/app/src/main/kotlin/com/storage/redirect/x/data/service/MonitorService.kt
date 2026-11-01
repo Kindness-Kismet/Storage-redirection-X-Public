@@ -8,6 +8,8 @@ object MonitorService {
 
     suspend fun reloadPolicy(): Boolean = runCommand("control monitor-policy").isSuccess
 
+    suspend fun clear(): Boolean = runCommand("control clear-monitor").isSuccess
+
     // 参数仅由本类的固定命令和数字构成。
     private suspend fun runCommand(arguments: String): CommandResult = RootService.runCommand(
         "for binary in ${Paths.MODULE_DIR}/bin/*/srx_logd; do " +

@@ -13,10 +13,15 @@ LOGS_CTX="u:object_r:shell_data_file:s0"
 mkdir -p "$LOGS_DIR"
 chmod 755 "$LOGS_DIR"
 mkdir -p "$CONFIG_DIR"
-touch "$STATS_FILE"
-chmod 666 "$STATS_FILE"
-if [ ! -s "$STATS_FILE" ]; then
-  echo "0" > "$STATS_FILE"
+if [ -f "$MODDIR/persistent_data.sh" ]; then
+  . "$MODDIR/persistent_data.sh"
+  prepare_persistent_stats "$MODDIR"
+else
+  touch "$STATS_FILE"
+  chmod 666 "$STATS_FILE"
+  if [ ! -s "$STATS_FILE" ]; then
+    echo "0" > "$STATS_FILE"
+  fi
 fi
 
 boot_id=""

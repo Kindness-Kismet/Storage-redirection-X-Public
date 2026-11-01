@@ -262,13 +262,15 @@ print_progress 90 "create logs dir"
 mkdir -p "$MODPATH/logs"
 chmod 777 "$MODPATH/logs"
 touch "$MODPATH/logs/running.log"
-touch "$MODPATH/logs/media_provider_state.log"
-touch "$MODPATH/logs/app_status.log"
-touch "$MODPATH/stats"
 chmod 666 "$MODPATH/logs/running.log"
-chmod 666 "$MODPATH/logs/media_provider_state.log"
-chmod 666 "$MODPATH/logs/app_status.log"
-chmod 666 "$MODPATH/stats"
+
+SRX_PERSISTENT_STATS="/data/adb/storage-redirect-x/stats"
+if [ -s "$SRX_PERSISTENT_STATS" ]; then
+  ln -sf "$SRX_PERSISTENT_STATS" "$MODPATH/stats"
+else
+  touch "$MODPATH/stats"
+  chmod 666 "$MODPATH/stats"
+fi
 
 print_progress 100 "install done"
 ui_print "-- config=$MODPATH/config"

@@ -369,7 +369,7 @@ def package_module(console: Console, project_root: Path, module_assets_root: Pat
     write_lf_text(temp_dir / "module.prop", module_prop)
     write_lf_text(temp_dir / "module_version.txt", f"{version.name}\n")
 
-    for name in ("action.sh", "customize.sh", "post-fs-data.sh", "service.sh", "persistent_data.sh", "sepolicy.rule", "uninstall.sh"):
+    for name in ("customize.sh", "post-fs-data.sh", "service.sh", "persistent_data.sh", "sepolicy.rule", "uninstall.sh"):
         src = module_assets_root / name
         if not src.exists():
             fail(f"missing module template: {name}")
@@ -470,7 +470,10 @@ def build_apk(args: argparse.Namespace) -> None:
     console.info(f"version={version.name} abi={', '.join(abis)}")
     console.step(1, 2, "Build APK")
     android_dir = project_root / "android"
-    result = run_process(console, gradlew_path(project_root), ["assembleRelease"], cwd=android_dir)
+    gradle_args = ["assembleRelease"]
+    if len(abis) == 1:
+        gradle_args.append(f"-PtargetAbi={abis[0]}")
+    result = run_process(console, gradlew_path(project_root), gradle_args, cwd=android_dir)
     if result.returncode != 0:
         fail("apk build failed")
     console.ok("apk build done")

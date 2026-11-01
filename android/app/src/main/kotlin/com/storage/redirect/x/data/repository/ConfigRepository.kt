@@ -108,6 +108,7 @@ class ConfigRepository {
                 }
             }
             Logger.debug("Partial app configs saved")
+            RootService.forceStopPackages(targetPackages)
             true
         }
 
@@ -138,6 +139,7 @@ class ConfigRepository {
                 }
                 if (!writeAppConfigJson(packageName, json)) return@withContext false
             }
+            RootService.forceStopPackages(packageNames)
             true
         }
 

@@ -242,6 +242,7 @@ handle_config_changes() {
 
   for package_name in $changed_packages; do
     is_skipped_package "$package_name" && continue
+    force_stop_package_all_users "$package_name"
 
     old_line=$(get_state_line "$old_state_file" "$package_name")
     new_line=$(get_state_line "$new_state_file" "$package_name")
@@ -258,6 +259,7 @@ handle_config_changes() {
     for shared_package in $(get_packages_by_uid "$uid"); do
       [ "$shared_package" = "$package_name" ] && continue
       is_skipped_package "$shared_package" && continue
+      force_stop_package_all_users "$shared_package"
 
       shared_old_line=$(get_state_line "$old_state_file" "$shared_package")
       shared_new_line=$(get_state_line "$new_state_file" "$shared_package")
@@ -334,8 +336,6 @@ start_config_event_collector() {
         while read -t 1 -r _; do :; done
 
         sync_shared_config_dir
-        sync_monitor_collector
-        sync_debug_collectors
 
         case "$event_line" in
           *"global.json")

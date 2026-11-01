@@ -7,25 +7,17 @@ mod transport;
 use libc::{c_void, recv};
 use rolling::RollingLog;
 use std::fs;
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, Write};
 use std::mem;
 use std::path::Path;
 use transport::{ClientSocket, bind_log_socket};
 
 const LOGS_DIR: &str = "/data/adb/modules/storage.redirect.x/logs";
 const RUNNING_LOG: &str = "/data/adb/modules/storage.redirect.x/logs/running.log";
-const MEDIA_STATE_LOG: &str = "/data/adb/modules/storage.redirect.x/logs/media_provider_state.log";
-const APP_STATUS_LOG: &str = "/data/adb/modules/storage.redirect.x/logs/app_status.log";
 const STATS_FILE: &str = "/data/adb/modules/storage.redirect.x/stats";
 const MAX_RUNNING_LINES: usize = 30_000;
-const MAX_MEDIA_STATE_LINES: usize = 30_000;
-const MAX_APP_STATUS_LINES: usize = 30_000;
 const RECV_BUFFER_SIZE: usize = 8192;
 
-const TAG_MEDIA_STATE: &str = "MediaState";
-const TAG_APP_STATUS: &str = "AppStatus";
-const TAG_MEDIA_STATE_FLUSH: &str = "MediaStateFlush";
-const TAG_APP_STATUS_FLUSH: &str = "AppStatusFlush";
 const TAG_STATS: &str = "Stats";
 const TAG_CONTROL: &str = "Control";
 const CONTROL_CLEAR_ALL: &str = "clear-all";
@@ -60,11 +52,10 @@ fn main() {
                 limit,
             )
         }
-        Some("emit-stream") => run_emit_stream(arg),
         Some("control") => run_control(arg),
         Some(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: srx_logd [emit-stream <tag> | control <command>]",
+            "usage: srx_logd [monitor-query | control <command>]",
         )),
     };
     if let Err(error) = result {
@@ -111,26 +102,6 @@ fn run_monitor_command(command: &str) -> io::Result<()> {
     }
 }
 
-fn run_emit_stream(tag: Option<String>) -> io::Result<()> {
-    let Some(tag) = tag.filter(|value| !value.is_empty()) else {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "missing tag"));
-    };
-    let Some(socket) = ClientSocket::new() else {
-        return Err(io::Error::last_os_error());
-    };
-
-    let stdin = io::stdin();
-    let reader = BufReader::new(stdin.lock());
-    for line in reader.lines() {
-        let line = line?;
-        socket.send('I', &tag, &line)?;
-    }
-    if let Some(flush_tag) = flush_tag_for(&tag) {
-        socket.send('I', flush_tag, ".")?;
-    }
-    Ok(())
-}
-
 fn run_control(command: Option<String>) -> io::Result<()> {
     let Some(command) = command.filter(|value| !value.is_empty()) else {
         return Err(io::Error::new(
@@ -152,20 +123,14 @@ fn run_control(command: Option<String>) -> io::Result<()> {
 
 struct LogState {
     running: RollingLog,
-    media_state: RollingLog,
-    app_status: RollingLog,
     stats_total: i64,
-    stats_dirty: usize,
 }
 
 impl LogState {
     fn new() -> io::Result<Self> {
         Ok(Self {
             running: RollingLog::open(RUNNING_LOG, MAX_RUNNING_LINES)?,
-            media_state: RollingLog::open(MEDIA_STATE_LOG, MAX_MEDIA_STATE_LINES)?,
-            app_status: RollingLog::open(APP_STATUS_LOG, MAX_APP_STATUS_LINES)?,
             stats_total: read_stats_total(),
-            stats_dirty: 0,
         })
     }
 
@@ -177,10 +142,6 @@ impl LogState {
         match tag {
             TAG_STATS => self.handle_stats(message),
             TAG_CONTROL => self.handle_control(message),
-            TAG_MEDIA_STATE => self.media_state.append(message),
-            TAG_APP_STATUS => self.app_status.append(message),
-            TAG_MEDIA_STATE_FLUSH => self.media_state.flush(),
-            TAG_APP_STATUS_FLUSH => self.app_status.flush(),
             _ => {
                 let line = format_running_line(level, tag, message);
                 self.running.append(&line);
@@ -200,10 +161,7 @@ impl LogState {
         }
 
         self.stats_total = self.stats_total.saturating_add(delta);
-        self.stats_dirty += 1;
-        if self.stats_dirty >= 50 {
-            self.flush_stats();
-        }
+        self.flush_stats();
     }
 
     fn handle_control(&mut self, message: &str) {
@@ -216,36 +174,20 @@ impl LogState {
 
     fn clear_all(&mut self) {
         self.running.clear();
-        self.media_state.clear();
-        self.app_status.clear();
-        self.stats_total = 0;
-        self.stats_dirty = 0;
-        let _ = fs::write(STATS_FILE, "0\n");
     }
 
     fn flush_all(&mut self) {
         self.running.flush();
-        self.media_state.flush();
-        self.app_status.flush();
-        if self.stats_dirty > 0 {
-            self.flush_stats();
-        }
     }
 
     fn flush_stats(&mut self) {
         let _ = fs::write(STATS_FILE, format!("{}\n", self.stats_total));
-        self.stats_dirty = 0;
     }
 }
 
 impl Drop for LogState {
     fn drop(&mut self) {
         self.running.flush();
-        self.media_state.flush();
-        self.app_status.flush();
-        if self.stats_dirty > 0 {
-            self.flush_stats();
-        }
     }
 }
 
@@ -306,14 +248,6 @@ fn timestamp_text() -> String {
         return "00/00 00:00:00".to_string();
     }
     String::from_utf8_lossy(&buffer[..written]).to_string()
-}
-
-fn flush_tag_for(tag: &str) -> Option<&'static str> {
-    match tag {
-        TAG_MEDIA_STATE => Some(TAG_MEDIA_STATE_FLUSH),
-        TAG_APP_STATUS => Some(TAG_APP_STATUS_FLUSH),
-        _ => None,
-    }
 }
 
 fn read_stats_total() -> i64 {

@@ -47,13 +47,18 @@ class FileMonitorViewModel(
         }
     }
 
-    fun refresh() {
+    fun refresh(isSilent: Boolean = false) {
+        if (isSilent && refreshJob?.isActive == true) return
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, isLoadingMore = false) }
+            if (!isSilent) {
+                _uiState.update { it.copy(isLoading = true, isLoadingMore = false) }
+            }
             val page = monitorRepo.loadPage()
             if (page == null) {
-                _uiState.update { it.copy(isLoading = false, hasLoadError = true) }
+                if (!isSilent) {
+                    _uiState.update { it.copy(isLoading = false, hasLoadError = true) }
+                }
                 return@launch
             }
             ConfigRepository.publishMonitorEnabled(page.isMonitoringEnabled)
@@ -74,6 +79,15 @@ class FileMonitorViewModel(
                         System.currentTimeMillis() - page.daemonUpdatedMs > 15000,
                 )
             }
+        }
+    }
+
+    fun clear() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            monitorRepo.clear()
+            before = 0L
+            refresh(isSilent = false)
         }
     }
 

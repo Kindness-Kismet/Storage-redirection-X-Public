@@ -195,7 +195,17 @@ pub fn rows(path: &Path, before: i64, after: i64, limit: usize) -> io::Result<Ve
 }
 
 pub fn run(module: &Path, before: i64, after: i64, limit: usize) -> io::Result<()> {
-    let health: Value = serde_json::from_slice(&fs::read("/dev/srx_file_monitor_health.json")?)?;
+    let health: Value = fs::read("/dev/srx_file_monitor_health.json")
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_else(|| {
+            json!({
+                "enabled": true,
+                "lost": 0,
+                "write_errors": 0,
+                "updated_ms": 0
+            })
+        });
     let updated = if health["connected"].as_bool() == Some(false)
         && health["enabled"].as_bool() != Some(false)
     {
@@ -204,7 +214,11 @@ pub fn run(module: &Path, before: i64, after: i64, limit: usize) -> io::Result<(
         health["updated_ms"].as_u64().unwrap_or(0)
     };
     let file = module.join("logs/monitor/file_monitor.db");
-    let entries = rows(&file, before, after, limit + 1)?;
+    let entries = if file.exists() {
+        rows(&file, before, after, limit + 1)?
+    } else {
+        Vec::new()
+    };
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
     writeln!(
