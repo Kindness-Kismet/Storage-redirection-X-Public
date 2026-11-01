@@ -95,14 +95,12 @@ fn spawn_install_worker() {
 }
 
 fn try_install() -> bool {
-    log::info!("fuse fixer install step=locate begin");
     let Some(image) = FuseJniImage::locate() else {
-        log::info!("fuse fixer install step=locate pending");
+        log::debug!("fuse fixer install step=locate pending");
         return false;
     };
     log::info!("fuse fixer install step=locate ok");
 
-    log::info!("fuse fixer install step=abi begin");
     let Some(abi) = StringAbi::resolve(&image) else {
         log::warn!("fuse fixer std::string abi unresolved");
         return false;
@@ -110,7 +108,6 @@ fn try_install() -> bool {
     let layout = abi.layout();
     log::info!("fuse fixer install step=abi ok layout={}", layout.name());
 
-    log::info!("fuse fixer install step=symbols begin");
     let Some(is_app_addr) = image
         .find_symbol(SYM_IS_APP_NDK)
         .or_else(|| image.find_symbol(SYM_IS_APP_STD))
@@ -275,9 +272,12 @@ unsafe extern "C" fn hooked_is_app(fuse: *const c_void, path: *const CxxString, 
         return false;
     }
     let orig: IsAppFn = unsafe { std::mem::transmute::<u64, IsAppFn>(raw) };
-    let bytes = unsafe { read_cxx_string(path, state.layout) };
     let original = unsafe { orig(fuse, path, uid) };
-    if original || should_allow_srx_fuse_access(bytes, uid) {
+    if original {
+        return true;
+    }
+    let bytes = unsafe { read_cxx_string(path, state.layout) };
+    if should_allow_srx_fuse_access(bytes, uid) {
         return true;
     }
     if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
@@ -304,8 +304,11 @@ unsafe extern "C" fn hooked_is_user(
         return false;
     }
     let orig: IsUserFn = unsafe { std::mem::transmute::<u64, IsUserFn>(raw) };
+    if !is_zero_width_fuse_fix_enabled() {
+        return unsafe { orig(req, fuse, path) };
+    }
     let bytes = unsafe { read_cxx_string(path, state.layout) };
-    if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
+    if !has_default_ignorable(bytes) {
         return unsafe { orig(req, fuse, path) };
     }
     let cleaned = remove_default_ignorable(bytes);
@@ -325,8 +328,11 @@ unsafe extern "C" fn hooked_is_pkg(path: *const CxxString, fuse_path: *const Cxx
         return false;
     }
     let orig: IsPkgFn = unsafe { std::mem::transmute::<u64, IsPkgFn>(raw) };
+    if !is_zero_width_fuse_fix_enabled() {
+        return unsafe { orig(path, fuse_path) };
+    }
     let bytes = unsafe { read_cxx_string(path, state.layout) };
-    if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
+    if !has_default_ignorable(bytes) {
         return unsafe { orig(path, fuse_path) };
     }
     let cleaned = remove_default_ignorable(bytes);
@@ -346,8 +352,11 @@ unsafe extern "C" fn hooked_is_bpf(path: *const CxxString) -> bool {
         return false;
     }
     let orig: IsBpfFn = unsafe { std::mem::transmute::<u64, IsBpfFn>(raw) };
+    if !is_zero_width_fuse_fix_enabled() {
+        return unsafe { orig(path) };
+    }
     let bytes = unsafe { read_cxx_string(path, state.layout) };
-    if !is_zero_width_fuse_fix_enabled() || !has_default_ignorable(bytes) {
+    if !has_default_ignorable(bytes) {
         return unsafe { orig(path) };
     }
     let cleaned = remove_default_ignorable(bytes);
@@ -382,7 +391,7 @@ unsafe extern "C" fn hooked_should_open_with_fuse(
     if should_force_userspace(bytes) {
         return true;
     }
-    if has_default_ignorable(bytes) {
+    if is_zero_width_fuse_fix_enabled() && has_default_ignorable(bytes) {
         let cleaned = remove_default_ignorable(bytes);
         return should_force_userspace(&cleaned);
     }

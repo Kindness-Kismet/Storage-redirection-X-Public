@@ -5,6 +5,7 @@ use crate::platform::gnu_debugdata;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::mem::size_of;
+use std::sync::OnceLock;
 
 const ZIP_LOCAL_HEADER_MAGIC: u32 = 0x04034b50;
 const SHT_PROGBITS: u32 = 1;
@@ -98,6 +99,7 @@ const PT_LOAD: u32 = 1;
 pub struct FuseJniImage {
     pub load_bias: usize,
     image: Vec<u8>,
+    debug_image: OnceLock<Option<Vec<u8>>>,
 }
 
 impl FuseJniImage {
@@ -112,6 +114,7 @@ impl FuseJniImage {
                 return Some(Self {
                     load_bias: bias,
                     image,
+                    debug_image: OnceLock::new(),
                 });
             }
         }
@@ -134,21 +137,23 @@ impl FuseJniImage {
         if let Some(addr) = lookup_in_image(&self.image, &ehdr, self.load_bias, name, false) {
             return Some(addr);
         }
-        let shstr = section_bytes(&self.image, &ehdr, ehdr.e_shstrndx as usize)?;
-        for i in 0..ehdr.e_shnum as usize {
-            let shdr = section_header(&self.image, &ehdr, i)?;
-            if shdr.sh_type != SHT_PROGBITS
-                || !section_name_is(shstr, shdr.sh_name, b".gnu_debugdata")
-            {
-                continue;
+        let debug_image = self.debug_image.get_or_init(|| {
+            let shstr = section_bytes(&self.image, &ehdr, ehdr.e_shstrndx as usize)?;
+            for i in 0..ehdr.e_shnum as usize {
+                let shdr = section_header(&self.image, &ehdr, i)?;
+                if shdr.sh_type == SHT_PROGBITS
+                    && section_name_is(shstr, shdr.sh_name, b".gnu_debugdata")
+                {
+                    let zipped = section_bytes_by_header(&self.image, &shdr)?;
+                    return gnu_debugdata::decompress(zipped);
+                }
             }
-            let zipped = section_bytes_by_header(&self.image, &shdr)?;
-            let unpacked = gnu_debugdata::decompress(zipped)?;
-            let debug_ehdr = parse_ehdr(&unpacked)?;
-            if let Some(addr) = lookup_in_image(&unpacked, &debug_ehdr, self.load_bias, name, false)
-            {
-                return Some(addr);
-            }
+            None
+        });
+        if let Some(unpacked) = debug_image.as_deref()
+            && let Some(debug_ehdr) = parse_ehdr(unpacked)
+        {
+            return lookup_in_image(unpacked, &debug_ehdr, self.load_bias, name, false);
         }
         None
     }
@@ -293,6 +298,7 @@ fn try_load_apk_entry(mapping: &Mapping, mappings: &[Mapping]) -> Option<FuseJni
     Some(FuseJniImage {
         load_bias: bias,
         image,
+        debug_image: OnceLock::new(),
     })
 }
 
