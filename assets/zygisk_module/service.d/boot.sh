@@ -13,7 +13,7 @@ boot_guard_wait() {
       else
         echo "unknown" > "$BOOT_OK_FILE"
       fi
-      rm -f "$BOOT_PENDING_FILE"
+      rm -f "$BOOT_PENDING_FILE" "$MODDIR/.boot_fail_count"
       refresh_uid_map
       start_diagnostics_workers
       return 0
@@ -22,6 +22,10 @@ boot_guard_wait() {
     sleep 1
   done
 
+  rm -f "$BOOT_PENDING_FILE" "$MODDIR/.boot_fail_count"
+  if [ -n "$boot_id" ]; then
+    echo "$boot_id" > "$BOOT_OK_FILE"
+  fi
   refresh_uid_map
   start_diagnostics_workers
   return 0

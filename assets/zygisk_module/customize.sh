@@ -272,6 +272,8 @@ else
   chmod 666 "$MODPATH/stats"
 fi
 
+rm -f "$MODPATH/.boot_pending" "$MODPATH/.boot_ok" "$MODPATH/.boot_fail_count" "$MODPATH/disable"
+
 print_progress 100 "install done"
 ui_print "-- config=$MODPATH/config"
 ui_print "-- logs=$MODPATH/logs"
