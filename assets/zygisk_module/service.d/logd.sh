@@ -49,27 +49,10 @@ start_log_daemon() {
   return 0
 }
 
-emit_private_log_stream() {
-  tag="$1"
-  logd_bin="$LOGD_BIN_PATH"
-  if [ -z "$logd_bin" ] || [ ! -x "$logd_bin" ]; then
-    logd_bin=$(resolve_logd_bin_path 2>/dev/null)
-  fi
-  if [ -z "$tag" ] || [ -z "$logd_bin" ] || [ ! -x "$logd_bin" ]; then
-    cat >/dev/null
-    return 1
-  fi
-  "$logd_bin" emit-stream "$tag"
-}
-
 start_diagnostics_workers() {
   ensure_log_files
-  stop_collector_by_pid_file "$MEDIA_STATE_COLLECTOR_PID_FILE"
-  stop_collector_by_pid_file "$APP_STATUS_SNAPSHOT_PID_FILE"
   stop_collector_by_pid_file "$CONFIG_EVENT_COLLECTOR_PID_FILE"
   stop_collector_by_pid_file "$PACKAGE_EVENT_COLLECTOR_PID_FILE"
-  start_media_state_collector
-  start_app_status_snapshot_collector
   start_config_event_collector
   start_package_event_collector
 }

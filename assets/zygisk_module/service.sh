@@ -4,17 +4,12 @@ MODDIR=${0%/*}
 
 . "$MODDIR/persistent_data.sh"
 prepare_persistent_logs "$MODDIR" "$MODDIR" || exit 1
+prepare_persistent_stats "$MODDIR"
 
 LOGS_DIR="$MODDIR/logs"
 RUNNING_LOG_FILE="$LOGS_DIR/running.log"
-MEDIA_STATE_LOG_FILE="$LOGS_DIR/media_provider_state.log"
-APP_STATUS_LOG_FILE="$LOGS_DIR/app_status.log"
 STATS_FILE="$MODDIR/stats"
 LOGD_PID_FILE="$LOGS_DIR/.logd.pid"
-MEDIA_STATE_COLLECTOR_PID_FILE="$LOGS_DIR/.media_state_collector.pid"
-APP_STATUS_SNAPSHOT_PID_FILE="$LOGS_DIR/.app_status_snapshot.pid"
-MEDIA_STATE_LAST_PID_FILE="$LOGS_DIR/.media_state_last_pid"
-MEDIA_STATE_DETAIL_TS_FILE="$LOGS_DIR/.media_state_detail_ts"
 CONFIG_EVENT_COLLECTOR_PID_FILE="$LOGS_DIR/.config_event_collector.pid"
 PACKAGE_EVENT_COLLECTOR_PID_FILE="$LOGS_DIR/.package_event_collector.pid"
 CONFIG_STATE_FILE="$LOGS_DIR/.config_apps_state"
@@ -32,7 +27,7 @@ mkdir -p "$LOGS_DIR"
 chmod 755 "$LOGS_DIR"
 
 SERVICE_DIR="$MODDIR/service.d"
-SERVICE_PARTS="common.sh logd.sh file_monitor.sh media_state.sh app_status.sh config_events.sh boot.sh"
+SERVICE_PARTS="common.sh logd.sh file_monitor.sh config_events.sh boot.sh"
 
 for service_name in $SERVICE_PARTS; do
   service_part="$SERVICE_DIR/$service_name"

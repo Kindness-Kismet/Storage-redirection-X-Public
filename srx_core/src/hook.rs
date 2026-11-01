@@ -6,6 +6,7 @@ mod fuse_fixer;
 mod jni_query;
 mod media_fuse;
 mod monitor;
+pub(crate) mod mountinfo;
 mod ops;
 mod path;
 mod reload;
@@ -15,7 +16,6 @@ mod util;
 
 use std::ffi::{CStr, c_char};
 
-pub use jni_query::install_cursor_window_native_hook;
 pub(crate) use jni_query::rewrite_cursor_storage_path_for_caller;
 pub use stats::InterceptHub;
 

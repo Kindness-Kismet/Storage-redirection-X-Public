@@ -37,11 +37,6 @@ pub(crate) fn rewrite_cursor_storage_path_for_caller(
     result
 }
 
-pub(super) fn rewrite_existing_cursor_storage_path(original_text: &str) -> Option<String> {
-    crate::hook::refresh_runtime_config_throttled();
-    rewrite_cursor_storage_path_with_mode(original_text, false)
-}
-
 fn rewrite_cursor_storage_path_with_mode(
     original_text: &str,
     can_hide_rows: bool,
