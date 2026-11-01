@@ -40,7 +40,11 @@
 
     <!-- Home -->
     <string name="home_title">Storage Redirect X</string>
-    <string name="home_module_installed">Module Installed</string>
+    <string name="home_module_installed">Module Active</string>
+    <string name="home_module_disabled">Module Disabled</string>
+    <string name="home_module_disabled_hint">Enable the module in root manager, then reboot</string>
+    <string name="home_module_not_running">Module Not Running</string>
+    <string name="home_module_not_running_hint">Module daemon failed to start or crashed</string>
     <string name="home_module_not_installed">Module Not Installed</string>
     <string name="home_version_value">Version %1$s</string>
     <string name="home_module_not_installed_hint">Flash the module in your root manager, then reboot</string>
@@ -290,6 +294,8 @@
     <string name="common_refreshing">Refreshing…</string>
     <string name="common_refresh_complete">Refreshed</string>
     <string name="common_delete">Delete</string>
+    <string name="file_monitor_clear">Clear monitor records</string>
+    <string name="logs_clear">Clear logs</string>
     <string name="common_edit">Edit</string>
     <string name="common_save">Save</string>
     <string name="common_retry">Retry</string>

@@ -40,7 +40,11 @@
 
     <!-- Home -->
     <string name="home_title">存储重定向 X</string>
-    <string name="home_module_installed">模块已安装</string>
+    <string name="home_module_installed">模块已激活</string>
+    <string name="home_module_disabled">模块已禁用</string>
+    <string name="home_module_disabled_hint">在 Root 管理器中启用模块后重启</string>
+    <string name="home_module_not_running">模块未运行</string>
+    <string name="home_module_not_running_hint">模块守护进程未启动或异常退出</string>
     <string name="home_module_not_installed">模块未安装</string>
     <string name="home_version_value">版本 %1$s</string>
     <string name="home_module_not_installed_hint">在 Root 管理器中刷入模块后重启</string>
@@ -281,6 +285,8 @@
     <string name="common_refreshing">正在刷新…</string>
     <string name="common_refresh_complete">刷新完成</string>
     <string name="common_delete">删除</string>
+    <string name="file_monitor_clear">清空监视记录</string>
+    <string name="logs_clear">清空日志</string>
     <string name="common_edit">编辑</string>
     <string name="common_save">保存</string>
     <string name="common_retry">重试</string>

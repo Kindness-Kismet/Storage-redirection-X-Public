@@ -51,6 +51,7 @@ import com.storage.redirect.x.ui.component.PillButton
 import com.storage.redirect.x.ui.component.SrxBackButton
 import com.storage.redirect.x.ui.component.SrxScaffold
 import com.storage.redirect.x.ui.component.SrxTopAppBar
+import com.storage.redirect.x.ui.navigation.LocalPageReady
 import com.storage.redirect.x.ui.util.topBarSurface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -75,7 +76,6 @@ private val LOGS_TYPE_INDICATOR_WIDTH = 4.dp
 private val LOGS_TYPE_INDICATOR_HEIGHT = 14.dp
 private val LOGS_TYPE_INDICATOR_CORNER_RADIUS = 2.dp
 private val LOGS_TYPE_TEXT_SPACING = 8.dp
-private val LOGS_CONTENT_TOP_SPACING = 6.dp
 
 @Composable
 fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
@@ -88,6 +88,7 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
     var hasLoadError by remember { mutableStateOf(false) }
     var logLines by remember { mutableStateOf(emptyList<String>()) }
     var filterQuery by remember { mutableStateOf("") }
+    val onReady = LocalPageReady.current
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/plain")
@@ -114,8 +115,9 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
             isLoading = true
             val content = logRepo.load(LOG_LINE_COUNT)
             hasLoadError = content == null
-            if (content != null) logLines = content.lines().filter { it.isNotBlank() }
+            if (content != null) logLines = content.lines().filter { it.isNotBlank() }.reversed()
             isLoading = false
+            onReady()
         }
     }
 
@@ -131,9 +133,10 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
     val isFilterVisible = !isLoading && logLines.isNotEmpty()
     SrxScaffold(
         topBar = {
-            Column {
+            Column(Modifier.topBarSurface()) {
                 SrxTopAppBar(
                     title = stringResource(R.string.logs_title),
+                    applyBlur = false,
                     navigationIcon = { SrxBackButton(onClick = onBack) },
                     actions = {
                         IconButton(
@@ -144,6 +147,18 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
                         ) {
                             Icon(AppIcons.Export, contentDescription = stringResource(R.string.logs_export))
                         }
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    if (logRepo.clear()) {
+                                        loadLogs()
+                                    }
+                                }
+                            },
+                            enabled = !isLoading,
+                        ) {
+                            Icon(AppIcons.Delete, contentDescription = stringResource(R.string.logs_clear))
+                        }
                         IconButton(onClick = { loadLogs() }) {
                             Icon(AppIcons.Refresh, contentDescription = stringResource(R.string.logs_refresh))
                         }
@@ -151,24 +166,23 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
                     scrollBehavior = scrollBehavior,
                 )
                 if (isFilterVisible) {
-                    Column(Modifier.topBarSurface()) {
-                        Spacer(Modifier.height(PAGE_CONTENT_TOP_PADDING))
-                        // 关键字过滤搜索栏
-                        SearchBar(
-                            inputField = {
-                                InputField(
-                                    query = filterQuery,
-                                    onQueryChange = { filterQuery = it },
-                                    onSearch = {},
-                                    expanded = false,
-                                    onExpandedChange = {},
-                                    label = stringResource(R.string.logs_filter_keyword)
-                                )
-                            },
-                            onExpandedChange = {},
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {}
-                    }
+                    Spacer(Modifier.height(PAGE_CONTENT_TOP_PADDING))
+                    // 关键字过滤搜索栏
+                    SearchBar(
+                        inputField = {
+                            InputField(
+                                query = filterQuery,
+                                onQueryChange = { filterQuery = it },
+                                onSearch = {},
+                                expanded = false,
+                                onExpandedChange = {},
+                                label = stringResource(R.string.logs_filter_keyword)
+                            )
+                        },
+                        onExpandedChange = {},
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {}
+                    Spacer(Modifier.height(10.dp))
                 }
             }
         },
@@ -223,9 +237,8 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
                 ),
                 verticalArrangement = Arrangement.spacedBy(PAGE_ITEM_GAP)
             ) {
-                itemsIndexed(filteredLines) { index, line ->
+                items(filteredLines) { line ->
                     LogLineCard(
-                        lineNumber = index + 1,
                         content = line,
                         onCopy = {
                             val cm = context.getSystemService(ClipboardManager::class.java)
@@ -241,7 +254,7 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
 
 // 日志行卡片（点击复制单行）
 @Composable
-private fun LogLineCard(lineNumber: Int, content: String, onCopy: () -> Unit) {
+private fun LogLineCard(content: String, onCopy: () -> Unit) {
     val typeColor = getTypeColor(content)
     val colorScheme = MiuixTheme.colorScheme
 
@@ -252,46 +265,34 @@ private fun LogLineCard(lineNumber: Int, content: String, onCopy: () -> Unit) {
             .clickable(onClick = onCopy),
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
                         horizontal = LOGS_CARD_CONTENT_HORIZONTAL_PADDING,
                         vertical = LOGS_CARD_CONTENT_VERTICAL_PADDING
                     ),
+                verticalAlignment = Alignment.Top,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .width(LOGS_TYPE_INDICATOR_WIDTH)
-                            .height(LOGS_TYPE_INDICATOR_HEIGHT)
-                            .clip(RoundedCornerShape(LOGS_TYPE_INDICATOR_CORNER_RADIUS))
-                            .background(typeColor)
-                    )
-                    Spacer(Modifier.width(LOGS_TYPE_TEXT_SPACING))
-                    Text(
-                        text = "#$lineNumber",
-                        fontWeight = FontWeight.W600,
-                        style = MiuixTheme.textStyles.body2,
-                        color = colorScheme.onSurfaceVariantSummary
-                    )
-                }
-
-                Spacer(Modifier.height(LOGS_CONTENT_TOP_SPACING))
-
-                // 日志内容
+                Box(
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .width(LOGS_TYPE_INDICATOR_WIDTH)
+                        .height(LOGS_TYPE_INDICATOR_HEIGHT)
+                        .clip(RoundedCornerShape(LOGS_TYPE_INDICATOR_CORNER_RADIUS))
+                        .background(typeColor)
+                )
+                Spacer(Modifier.width(LOGS_TYPE_TEXT_SPACING))
                 Text(
                     text = content,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
                     color = colorScheme.onSurface,
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
-
     }
 }
 

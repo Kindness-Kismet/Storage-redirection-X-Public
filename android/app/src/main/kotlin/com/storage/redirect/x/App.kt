@@ -287,9 +287,11 @@ fun App(
                     .add(WindowInsets.displayCutout)
                     .only(WindowInsetsSides.Horizontal),
             ) { padding ->
+                Box(modifier = Modifier.fillMaxSize()) {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier
+                            .fillMaxSize()
                             .padding(padding)
                             .testTag("page_container_${navKeys[pagerState.settledPage]}")
                             .then(if (isBottomBarBlurEnabled) Modifier.layerBackdrop(bottomBarBackdrop) else Modifier),
@@ -301,12 +303,13 @@ fun App(
                             0 -> HomePage(
                                 themeMode = themeSettings.colorMode.value,
                                 bottomInnerPadding = overlayBottomPadding,
+                                onMenuStateChange = { isAnyMenuOpen = it },
                                 onTemplatesClick = { pageStack.push(AppPage.Templates) },
-                                onLogsClick = { pageStack.push(AppPage.Logs) },
+                                onLogsClick = { pageStack.push(AppPage.Logs, waitForReady = true) },
                             )
                             1 -> AppsPage(
                                 onAppClick = { packageName, appName, userId ->
-                                    pageStack.push(AppPage.RuleConfig(packageName, appName, userId))
+                                    pageStack.push(AppPage.RuleConfig(packageName, appName, userId), waitForReady = true)
                                 },
                                 configVersion = configVersion,
                                 bottomInnerPadding = overlayBottomPadding,
@@ -314,84 +317,88 @@ fun App(
                                 onBatchModeChange = { isAppsBatchMode = it },
                                 onTemplatesClick = { pageStack.push(AppPage.Templates) },
                             )
-                            2 -> FileMonitorPage(bottomInnerPadding = overlayBottomPadding)
+                            2 -> FileMonitorPage(
+                                bottomInnerPadding = overlayBottomPadding,
+                                onMenuStateChange = { isAnyMenuOpen = it },
+                            )
                             3 -> SettingsPage(
                                 onOpenTheme = { pageStack.push(AppPage.Theme) },
-                                onOpenLogs = { pageStack.push(AppPage.Logs) },
+                                onOpenLogs = { pageStack.push(AppPage.Logs, waitForReady = true) },
                                 onOpenAbout = { pageStack.push(AppPage.About) },
                                 onOpenUpdate = { pageStack.push(AppPage.Update) },
                                 bottomInnerPadding = overlayBottomPadding,
                             )
                         }
                     }
-                }
 
-            // 底栏属于主页面层，二级页面压栈后将其覆盖
-            if (bottomBarAppearance.isFloatingBottomBarEnabled) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.BottomCenter,
-                ) {
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        AnimatedVisibility(
-                            visible = !isAppsBatchMode,
-                            enter = slideInVertically { it } + fadeIn(),
-                            exit = slideOutVertically { it } + fadeOut(),
+                    // 底栏属于主页面层，位于 Scaffold 内部，受 MiuixPopupHost 遮罩覆盖
+                    if (bottomBarAppearance.isFloatingBottomBarEnabled) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.BottomCenter,
                         ) {
-                            FloatingBottomBar(
-                                modifier = floatingBottomBarModifier.testTag("bottom_bar"),
-                                selectedIndex = selectedTabIndex,
-                                tabTags = navKeys,
-                                onSelected = { index -> rootNavigation.animateTo(index) },
-                                backdrop = bottomBarBackdrop,
-                                tabsCount = navKeys.size,
-                                isBlurEnabled = isBottomBarBlurEnabled,
-                                isDarkTheme = isDark,
-                                enabled = !isAnyMenuOpen,
-                                accentColor = MiuixTheme.colorScheme.primary,
-                                containerColor = MiuixTheme.colorScheme.surfaceContainer,
-                            ) {
-                                navIcons.forEachIndexed { index, icon ->
-                                    FloatingBottomBarTab(
-                                        onClick = { rootNavigation.animateTo(index) },
+                            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                AnimatedVisibility(
+                                    visible = !isAppsBatchMode,
+                                    enter = slideInVertically { it } + fadeIn(),
+                                    exit = slideOutVertically { it } + fadeOut(),
+                                ) {
+                                    FloatingBottomBar(
+                                        modifier = floatingBottomBarModifier.testTag("bottom_bar"),
+                                        selectedIndex = selectedTabIndex,
+                                        tabTags = navKeys,
+                                        onSelected = { index -> rootNavigation.animateTo(index) },
+                                        backdrop = bottomBarBackdrop,
+                                        tabsCount = navKeys.size,
+                                        isBlurEnabled = isBottomBarBlurEnabled,
+                                        isDarkTheme = isDark,
                                         enabled = !isAnyMenuOpen,
-                                        modifier = Modifier
-                                            .defaultMinSize(minWidth = 76.dp)
-                                            .testTag("bottom_tab_${navKeys[index]}"),
+                                        accentColor = MiuixTheme.colorScheme.primary,
+                                        containerColor = MiuixTheme.colorScheme.surfaceContainer,
                                     ) {
-                                        Icon(
-                                            imageVector = if (index == selectedTabIndex) navSelectedIcons[index] else icon,
-                                            contentDescription = navLabels[index],
-                                            tint = bottomBarContentColor,
-                                        )
-                                        Text(
-                                            text = navLabels[index],
-                                            fontSize = 11.sp,
-                                            lineHeight = 14.sp,
-                                            color = bottomBarContentColor,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Visible,
-                                        )
+                                        navIcons.forEachIndexed { index, icon ->
+                                            FloatingBottomBarTab(
+                                                onClick = { rootNavigation.animateTo(index) },
+                                                enabled = !isAnyMenuOpen,
+                                                modifier = Modifier
+                                                    .defaultMinSize(minWidth = 76.dp)
+                                                    .testTag("bottom_tab_${navKeys[index]}"),
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (index == selectedTabIndex) navSelectedIcons[index] else icon,
+                                                    contentDescription = navLabels[index],
+                                                    tint = bottomBarContentColor,
+                                                )
+                                                Text(
+                                                    text = navLabels[index],
+                                                    fontSize = 11.sp,
+                                                    lineHeight = 14.sp,
+                                                    color = bottomBarContentColor,
+                                                    maxLines = 1,
+                                                    softWrap = false,
+                                                    overflow = TextOverflow.Visible,
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
+                    } else if (!isAppsBatchMode) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                            AppNavigationBar(
+                                labels = navLabels,
+                                icons = navIcons,
+                                selectedIcons = navSelectedIcons,
+                                selectedIndex = selectedTabIndex,
+                                enabled = !isAnyMenuOpen,
+                                backdrop = if (isBottomBarBlurEnabled) bottomBarBackdrop else null,
+                                onSelect = { index -> rootNavigation.animateTo(index) },
+                            )
+                        }
                     }
-                }
-            } else if (!isAppsBatchMode) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                    AppNavigationBar(
-                        labels = navLabels,
-                        icons = navIcons,
-                        selectedIcons = navSelectedIcons,
-                        selectedIndex = selectedTabIndex,
-                        enabled = !isAnyMenuOpen,
-                        backdrop = if (isBottomBarBlurEnabled) bottomBarBackdrop else null,
-                        onSelect = { index -> rootNavigation.animateTo(index) },
-                    )
                 }
             }
         }
