@@ -72,12 +72,13 @@ fun SrxTopAppBar(
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
     scrollBehavior: ScrollBehavior? = null,
+    applyBlur: Boolean = true,
 ) {
-    val backdrop = LocalTopBarBackdrop.current
+    val backdrop = if (applyBlur) LocalTopBarBackdrop.current else null
     TopAppBar(
         title = title,
-        modifier = modifier.surfaceBlur(backdrop),
-        color = if (backdrop != null) Color.Transparent else MiuixTheme.colorScheme.surface,
+        modifier = if (backdrop != null) modifier.surfaceBlur(backdrop) else modifier,
+        color = if (LocalTopBarBackdrop.current != null || !applyBlur) Color.Transparent else MiuixTheme.colorScheme.surface,
         subtitle = subtitle,
         navigationIcon = navigationIcon,
         actions = actions,
@@ -92,12 +93,13 @@ fun SrxSmallTopAppBar(
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
     scrollBehavior: ScrollBehavior? = null,
+    applyBlur: Boolean = true,
 ) {
-    val backdrop = LocalTopBarBackdrop.current
+    val backdrop = if (applyBlur) LocalTopBarBackdrop.current else null
     SmallTopAppBar(
         title = title,
-        modifier = modifier.surfaceBlur(backdrop),
-        color = if (backdrop != null) Color.Transparent else MiuixTheme.colorScheme.surface,
+        modifier = if (backdrop != null) modifier.surfaceBlur(backdrop) else modifier,
+        color = if (LocalTopBarBackdrop.current != null || !applyBlur) Color.Transparent else MiuixTheme.colorScheme.surface,
         navigationIcon = navigationIcon,
         actions = actions,
         scrollBehavior = scrollBehavior,

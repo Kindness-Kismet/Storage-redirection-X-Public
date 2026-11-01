@@ -114,29 +114,28 @@ internal fun AppsPageMiuix(
     SrxScaffold(
         modifier = Modifier.testTag("page_apps"),
         topBar = {
-            Column {
+            Column(Modifier.topBarSurface()) {
                 if (data.isBatchMode) {
                     BatchTopBarMiuix(data = data, actions = actions)
                 } else {
                     NormalTopBarMiuix(data = data, dialogs = dialogs, actions = actions, scrollBehavior = scrollBehavior)
                 }
-                Column(Modifier.topBarSurface()) {
-                    Spacer(Modifier.height(PAGE_CONTENT_TOP_PADDING))
-                    SearchBar(
-                        inputField = {
-                            InputField(
-                                query = data.searchQuery,
-                                onQueryChange = actions.onSearchChange,
-                                onSearch = {},
-                                expanded = false,
-                                onExpandedChange = {},
-                                label = stringResource(R.string.apps_search),
-                            )
-                        },
-                        onExpandedChange = {},
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {}
-                }
+                Spacer(Modifier.height(PAGE_CONTENT_TOP_PADDING))
+                SearchBar(
+                    inputField = {
+                        InputField(
+                            query = data.searchQuery,
+                            onQueryChange = actions.onSearchChange,
+                            onSearch = {},
+                            expanded = false,
+                            onExpandedChange = {},
+                            label = stringResource(R.string.apps_search),
+                        )
+                    },
+                    onExpandedChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                ) {}
+                Spacer(Modifier.height(10.dp))
             }
         },
     ) { innerPadding ->
@@ -260,6 +259,7 @@ private fun AppList(
 private fun BatchTopBarMiuix(data: AppsPageData, actions: AppsPageActions) {
     SrxSmallTopAppBar(
         title = pluralStringResource(R.plurals.apps_selected_count, data.selectedBatchCount, data.selectedBatchCount),
+        applyBlur = false,
         navigationIcon = {
             IconButton(
                 onClick = actions.onCancelBatch,
@@ -297,12 +297,10 @@ private fun NormalTopBarMiuix(
     SrxTopAppBar(
         title = stringResource(R.string.apps_title),
         scrollBehavior = scrollBehavior,
+        applyBlur = false,
         actions = {
             IconButton(onClick = actions.onOpenTemplates, modifier = Modifier.testTag("apps_templates_button")) {
                 Icon(AppIcons.Layers, contentDescription = stringResource(R.string.apps_templates))
-            }
-            IconButton(onClick = actions.onRefresh) {
-                Icon(AppIcons.Refresh, contentDescription = stringResource(R.string.apps_refresh))
             }
             // 单用户设备无需切换入口
             if (data.systemUsers.size > 1) {

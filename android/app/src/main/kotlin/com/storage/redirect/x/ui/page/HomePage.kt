@@ -42,6 +42,8 @@ import com.storage.redirect.x.ui.component.SrxScaffold
 import com.storage.redirect.x.ui.component.SrxTopAppBar
 import com.storage.redirect.x.ui.component.StatusCard
 import com.storage.redirect.x.ui.icon.AppIcons
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -63,6 +65,7 @@ private val HOME_DIALOG_BUTTON_SPACING = 12.dp
 fun HomePage(
     themeMode: Int = 0,
     bottomInnerPadding: Dp = 0.dp,
+    onMenuStateChange: (Boolean) -> Unit = {},
     onTemplatesClick: () -> Unit = {},
     onLogsClick: () -> Unit = {},
 ) {
@@ -74,9 +77,17 @@ fun HomePage(
     var isRestartDialogVisible by remember { mutableStateOf(false) }
     var isRestarting by remember { mutableStateOf(false) }
 
+    LaunchedEffect(isRestartDialogVisible) {
+        onMenuStateChange(isRestartDialogVisible)
+    }
+
     LaunchedEffect(Unit) {
         HomeDataCache.ensureLoaded(moduleRepo, configRepo, context.packageManager, context.packageName)
         DeviceInfoCache.ensureLoaded()
+        while (isActive) {
+            delay(3000)
+            HomeDataCache.refreshStats(moduleRepo)
+        }
     }
 
     val onConfirmRestart: () -> Unit = {
@@ -107,13 +118,14 @@ fun HomePage(
             )
         },
     ) { innerPadding ->
+        val topPadding = innerPadding.calculateTopPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(Modifier.height(innerPadding.calculateTopPadding() + PAGE_CONTENT_TOP_PADDING))
+            Spacer(Modifier.height(topPadding + PAGE_CONTENT_TOP_PADDING))
 
             StatusCard(
                 status = HomeDataCache.moduleStatus,

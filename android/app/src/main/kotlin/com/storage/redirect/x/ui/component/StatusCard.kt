@@ -37,9 +37,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 
 // 模块状态
-enum class ModuleStatus { LOADING, INSTALLED, NOT_INSTALLED }
+enum class ModuleStatus { LOADING, INSTALLED, DISABLED, NOT_RUNNING, NOT_INSTALLED }
 
-// 模块状态卡：状态头部 + 统计行；已安装绿色，未安装红色，加载中灰色
+// 模块状态卡：状态头部 + 统计行；已激活绿色，未激活黄色，未安装红色，加载中灰色
 @Composable
 fun StatusCard(
     status: ModuleStatus,
@@ -52,16 +52,21 @@ fun StatusCard(
     val palette = statusPalette(status, isInDarkTheme(themeMode))
     val title = when (status) {
         ModuleStatus.INSTALLED -> stringResource(R.string.home_module_installed)
+        ModuleStatus.DISABLED -> stringResource(R.string.home_module_disabled)
+        ModuleStatus.NOT_RUNNING -> stringResource(R.string.home_module_not_running)
         ModuleStatus.NOT_INSTALLED -> stringResource(R.string.home_module_not_installed)
         ModuleStatus.LOADING -> stringResource(R.string.common_loading)
     }
-    val subtitle = if (status == ModuleStatus.NOT_INSTALLED) {
-        stringResource(R.string.home_module_not_installed_hint)
-    } else {
-        stringResource(R.string.home_version_value, version)
+    val subtitle = when (status) {
+        ModuleStatus.INSTALLED -> stringResource(R.string.home_version_value, version)
+        ModuleStatus.DISABLED -> stringResource(R.string.home_module_disabled_hint)
+        ModuleStatus.NOT_RUNNING -> stringResource(R.string.home_module_not_running_hint)
+        ModuleStatus.NOT_INSTALLED -> stringResource(R.string.home_module_not_installed_hint)
+        ModuleStatus.LOADING -> stringResource(R.string.common_loading)
     }
     val icon = when (status) {
         ModuleStatus.INSTALLED -> AppIcons.CheckCircle
+        ModuleStatus.DISABLED, ModuleStatus.NOT_RUNNING -> AppIcons.Warning
         ModuleStatus.NOT_INSTALLED -> AppIcons.Warning
         ModuleStatus.LOADING -> AppIcons.Pending
     }
@@ -156,6 +161,14 @@ private fun statusPalette(status: ModuleStatus, isDark: Boolean): StatusPalette 
         StatusPalette(
             container = if (isDark) Color(0xFF11261A) else Color(0xFFE9F7EE),
             accent = if (isDark) Color(0xFF3CCB6C) else Color(0xFF1FAF54),
+        )
+    }
+    ModuleStatus.DISABLED, ModuleStatus.NOT_RUNNING -> if (isDynamicColor) {
+        StatusPalette(colorScheme.tertiaryContainer, STATUS_WARNING_COLOR)
+    } else {
+        StatusPalette(
+            container = if (isDark) Color(0xFF332611) else Color(0xFFFFF7E6),
+            accent = if (isDark) Color(0xFFFFB300) else STATUS_WARNING_COLOR,
         )
     }
     ModuleStatus.NOT_INSTALLED -> if (isDynamicColor) {
