@@ -38,6 +38,6 @@ for service_name in $SERVICE_PARTS; do
   . "$service_part"
 done
 
-start_log_daemon || exit 1
+start_log_daemon
 start_file_monitor_service
 boot_guard_wait &
