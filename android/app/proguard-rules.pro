@@ -2,3 +2,7 @@
 -keepattributes Signature
 -keepattributes *Annotation*
 -keep class com.storage.redirect.x.data.model.** { *; }
+
+# R8 深度优化
+-repackageclasses
+-allowaccessmodification

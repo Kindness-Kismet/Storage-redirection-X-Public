@@ -1,10 +1,9 @@
 ensure_log_files() {
-  touch "$RUNNING_LOG_FILE" "$MEDIA_STATE_LOG_FILE" "$APP_STATUS_LOG_FILE" "$STATS_FILE"
+  touch "$RUNNING_LOG_FILE" "$STATS_FILE"
   if [ ! -s "$STATS_FILE" ]; then
     echo "0" > "$STATS_FILE"
   fi
-  chmod 666 "$RUNNING_LOG_FILE" "$MEDIA_STATE_LOG_FILE" "$APP_STATUS_LOG_FILE" "$STATS_FILE"
-  rm -f "$LOGS_DIR/media_provider.log" "$LOGS_DIR/app_crash.log" "$MEDIA_STATE_LAST_PID_FILE" "$MEDIA_STATE_DETAIL_TS_FILE"
+  chmod 666 "$RUNNING_LOG_FILE" "$STATS_FILE"
 }
 
 now_epoch_seconds() {

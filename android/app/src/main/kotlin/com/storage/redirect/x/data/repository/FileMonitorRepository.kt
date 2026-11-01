@@ -45,4 +45,5 @@ class FileMonitorRepository {
 
     suspend fun loadEntries(lineCount: Int): List<FileMonitorEntry>? = loadPage(lineCount = lineCount)?.entries
 
+    suspend fun clear(): Boolean = MonitorService.clear()
 }

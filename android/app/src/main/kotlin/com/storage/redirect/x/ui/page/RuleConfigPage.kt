@@ -57,6 +57,7 @@ import com.storage.redirect.x.ui.component.STATUS_WARNING_COLOR
 import com.storage.redirect.x.ui.component.SrxBackButton
 import com.storage.redirect.x.ui.component.SrxScaffold
 import com.storage.redirect.x.ui.component.SrxTopAppBar
+import com.storage.redirect.x.ui.navigation.LocalPageReady
 import com.storage.redirect.x.ui.navigation.PageStackHost
 import com.storage.redirect.x.ui.navigation.rememberPageStack
 import kotlinx.coroutines.Dispatchers
@@ -143,12 +144,14 @@ fun RuleConfigPage(
     var selectedTemplate by remember { mutableStateOf<RedirectTemplate?>(null) }
     var pendingApplyMode by remember { mutableStateOf<TemplateApplyMode?>(null) }
     val showSharedUidApplyDialog = remember { mutableStateOf(false) }
+    val onReady = LocalPageReady.current
 
     LaunchedEffect(Unit) {
         sharedUidRepo.load()
         sharedPackages = sharedUidRepo.getSharedPackages(packageName)
         config = configRepo.loadPackages(userId, listOf(packageName) + sharedPackages)
         isLoading = false
+        onReady()
     }
 
     // 保存配置并同步到共享 UID 的所有包（UI 立即更新，IO 异步写入）

@@ -132,6 +132,10 @@ where
     diagnostic::log_diag_path_event(hub, op_name, "input", &path_for_decision, fd);
     let mut result = call_original();
     let original_errno = current_errno();
+    if !paths::is_sqlite_database_or_sidecar_path(&path_for_decision) {
+        set_errno(original_errno);
+        return result;
+    }
     if let Some(retry_result) = confirm_private_owner_sqlite_ftruncate(
         hub,
         op_name,
@@ -252,6 +256,10 @@ where
     diagnostic::log_diag_path_event(hub, op_name, "input", &path_for_decision, fd);
     let mut result = call_original();
     let original_errno = current_errno();
+    if !paths::is_sqlite_database_or_sidecar_path(&path_for_decision) {
+        set_errno(original_errno);
+        return result;
+    }
     if let Some(retry_result) = confirm_private_owner_sqlite_futimens(
         hub,
         op_name,
@@ -374,6 +382,9 @@ fn resolve_private_owner_sqlite_backend(
     path_for_decision: &str,
 ) -> Option<(String, String, i32)> {
     let storage_path = paths::normalize(path_for_decision);
+    if !paths::is_sqlite_database_or_sidecar_path(&storage_path) {
+        return None;
+    }
     let process_uid = unsafe { libc::getuid() as i32 };
     let package_name = hub.get_package_name();
     let caller_uid = hub.get_current_caller_uid();

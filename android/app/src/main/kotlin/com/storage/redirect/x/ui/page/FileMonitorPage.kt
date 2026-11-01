@@ -91,13 +91,18 @@ private val FILE_MONITOR_PATH_TOP_SPACING = 4.dp
 fun FileMonitorPage(
     monitorViewModel: FileMonitorViewModel = viewModel(),
     bottomInnerPadding: Dp = 0.dp,
+    onMenuStateChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val uiState by monitorViewModel.uiState.collectAsState()
 
-    // 每次进入页面时自动刷新
+    // 页面活跃期间定时静默刷新
     LaunchedEffect(Unit) {
         monitorViewModel.refresh()
+        while (true) {
+            kotlinx.coroutines.delay(2500)
+            monitorViewModel.refresh(isSilent = true)
+        }
     }
 
     // 页面离开时重置搜索状态
@@ -164,10 +169,14 @@ fun FileMonitorPage(
     SrxScaffold(
         modifier = Modifier.testTag("page_monitor"),
         topBar = {
-            Column {
+            Column(Modifier.topBarSurface()) {
                 SrxTopAppBar(
                     title = stringResource(R.string.file_monitor_title),
+                    applyBlur = false,
                     actions = {
+                        IconButton(onClick = { monitorViewModel.clear() }, enabled = !isLoading) {
+                            Icon(AppIcons.Delete, contentDescription = stringResource(R.string.file_monitor_clear))
+                        }
                         IconButton(onClick = { monitorViewModel.refresh() }, enabled = !isLoading) {
                             Icon(AppIcons.Refresh, contentDescription = stringResource(R.string.file_monitor_refresh))
                         }
@@ -175,9 +184,8 @@ fun FileMonitorPage(
                     scrollBehavior = scrollBehavior,
                 )
                 if (isSearchVisible) {
-                    Column(Modifier.topBarSurface()) {
-                        Spacer(Modifier.height(PAGE_CONTENT_TOP_PADDING))
-                        SearchBar(
+                    Spacer(Modifier.height(PAGE_CONTENT_TOP_PADDING))
+                    SearchBar(
                             inputField = {
                                 InputField(
                                     query = searchQuery,
@@ -200,6 +208,7 @@ fun FileMonitorPage(
                                                 labels = filterLabels,
                                                 selectedIndex = uiState.opTypeIndex,
                                                 onSelect = monitorViewModel::updateOpTypeIndex,
+                                                onMenuStateChange = onMenuStateChange,
                                             )
                                         }
                                     },
@@ -208,7 +217,7 @@ fun FileMonitorPage(
                             onExpandedChange = {},
                             modifier = Modifier.fillMaxWidth(),
                         ) {}
-                    }
+                    Spacer(Modifier.height(10.dp))
                 }
             }
         },
@@ -261,8 +270,16 @@ fun FileMonitorPage(
 }
 
 @Composable
-private fun MonitorFilterButton(labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit) {
+private fun MonitorFilterButton(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    onMenuStateChange: (Boolean) -> Unit,
+) {
     var isExpanded by remember { mutableStateOf(false) }
+    LaunchedEffect(isExpanded) {
+        onMenuStateChange(isExpanded)
+    }
     Box {
         IconButton(
             onClick = { isExpanded = true },

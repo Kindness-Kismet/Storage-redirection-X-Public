@@ -8,15 +8,21 @@ SYSTEM_WRITER_UIDS_FILE="$CONFIG_DIR/system_writer_uids.list"
 STATS_FILE="$MODDIR/stats"
 BOOT_PENDING_FILE="$MODDIR/.boot_pending"
 BOOT_OK_FILE="$MODDIR/.boot_ok"
+BOOT_FAIL_COUNT_FILE="$MODDIR/.boot_fail_count"
 LOGS_CTX="u:object_r:shell_data_file:s0"
 
 mkdir -p "$LOGS_DIR"
 chmod 755 "$LOGS_DIR"
 mkdir -p "$CONFIG_DIR"
-touch "$STATS_FILE"
-chmod 666 "$STATS_FILE"
-if [ ! -s "$STATS_FILE" ]; then
-  echo "0" > "$STATS_FILE"
+if [ -f "$MODDIR/persistent_data.sh" ]; then
+  . "$MODDIR/persistent_data.sh"
+  prepare_persistent_stats "$MODDIR"
+else
+  touch "$STATS_FILE"
+  chmod 666 "$STATS_FILE"
+  if [ ! -s "$STATS_FILE" ]; then
+    echo "0" > "$STATS_FILE"
+  fi
 fi
 
 boot_id=""
@@ -35,8 +41,17 @@ if [ -f "$BOOT_OK_FILE" ]; then
 fi
 
 if [ -n "$last_pending" ] && [ "$last_pending" != "$boot_id" ] && [ "$last_pending" != "$last_ok" ]; then
-  touch "$MODDIR/disable"
-  exit 0
+  fail_count=0
+  if [ -f "$BOOT_FAIL_COUNT_FILE" ]; then
+    fail_count=$(cat "$BOOT_FAIL_COUNT_FILE" 2>/dev/null || echo 0)
+  fi
+  if [ "$fail_count" -ge 1 ]; then
+    touch "$MODDIR/disable"
+    rm -f "$BOOT_PENDING_FILE" "$BOOT_FAIL_COUNT_FILE"
+    exit 0
+  else
+    echo "$((fail_count + 1))" > "$BOOT_FAIL_COUNT_FILE"
+  fi
 fi
 
 if [ -n "$boot_id" ]; then
@@ -44,7 +59,6 @@ if [ -n "$boot_id" ]; then
 else
   echo "unknown" > "$BOOT_PENDING_FILE"
 fi
-rm -f "$BOOT_OK_FILE"
 
 # 清理历史启动 marker，避免 logs 目录长期累积。
 if [ -d "$LOGS_DIR" ]; then

@@ -198,7 +198,7 @@ print_diagnostics() {
   local scenario="$1"
   echo "=== scenario ${scenario} diagnostics ==="
   print_storage_state "scenario-${scenario}-failure"
-  adb_su "echo ===config===; cat '$CONFIG' 2>/dev/null || true; echo; echo ===module_state===; ls -la ${MODULE_DIR} 2>/dev/null || true; echo; mount | grep -E 'srx|storage.redirect' || true; echo; echo ===logs===; for log in running.log app_status.log file_monitor.log media_provider_state.log; do echo ---\$log---; tail -80 ${MODULE_DIR}/logs/\$log 2>/dev/null || true; done" || true
+  adb_su "echo ===config===; cat '$CONFIG' 2>/dev/null || true; echo; echo ===module_state===; ls -la ${MODULE_DIR} 2>/dev/null || true; echo; mount | grep -E 'srx|storage.redirect' || true; echo; echo ===logs===; for log in running.log monitor-service.log; do echo ---\$log---; tail -80 ${MODULE_DIR}/logs/\$log 2>/dev/null || true; done" || true
   adb logcat -d -t 1200 | grep -Ei 'StorageRedirectTest|srx|StorageRedirect|Magisk|zygisk|FATAL EXCEPTION|AndroidRuntime|MediaProvider|vold|sdcard|fuse' | tail -260 || true
 }
 

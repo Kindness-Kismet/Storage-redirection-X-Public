@@ -76,6 +76,13 @@ object RootService {
         return result.isSuccess
     }
 
+    suspend fun forceStopPackages(packages: Collection<String>): Boolean {
+        val targets = packages.filter { isSafePackageName(it) }
+        if (targets.isEmpty()) return true
+        val command = targets.joinToString(" ; ") { "am force-stop ${shellQuote(it)} 2>/dev/null" }
+        return runCommand(command).isSuccess
+    }
+
     private suspend fun filterRunningApps(packages: List<String>): List<String> {
         if (packages.isEmpty()) return emptyList()
         val result = runCommand("ps -A -o NAME 2>/dev/null")

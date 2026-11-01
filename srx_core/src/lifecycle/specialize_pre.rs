@@ -6,7 +6,6 @@ mod writer_context;
 
 use super::RuntimeFlow;
 use crate::config::{SettingsHub, watcher};
-use crate::hook;
 use crate::logging::Logger;
 use crate::platform::module_paths;
 use crate::platform::paths::monotonic_ms;
@@ -24,7 +23,7 @@ use writer_context::{SystemWriterContext, resolve_system_writer_context};
 
 impl RuntimeFlow {
     // 请求 Zygisk 在 postAppSpecialize 后卸载模块 .so
-    fn request_dlclose(&self) {
+    pub(super) fn request_dlclose(&self) {
         if self.should_keep_module_loaded {
             log::debug!(
                 "dlclose skipped pid={} pkg={}",
@@ -224,12 +223,16 @@ impl RuntimeFlow {
         if should_install_monitor_bridge {
             self.should_keep_module_loaded = true;
         }
-        if !self.should_redirect && !self.should_monitor && !should_install_monitor_bridge {
+        if !self.should_redirect
+            && !self.should_monitor
+            && !should_install_monitor_bridge
+            && !self.should_install_fuse_fixer
+        {
             if !self.should_keep_module_loaded {
                 // 模块即将 dlclose，post 阶段不再做任何事，避免在转译进程里触碰匿名段
                 self.should_skip_post_work = true;
+                self.request_dlclose();
             }
-            self.request_dlclose();
             self.log_specialize_exit("bypass", is_system_writer, perf_started_ms, &metrics);
             return;
         }
@@ -253,13 +256,6 @@ impl RuntimeFlow {
                 should_install_monitor_bridge,
                 self.should_monitor,
             );
-        }
-
-        if self.should_redirect
-            && let Some(api) = self.api.as_ref()
-            && !writer_context.is_system_writer
-        {
-            hook::install_cursor_window_native_hook(api, self.env, &self.package_name);
         }
 
         Logger::init(Some(&self.package_name));

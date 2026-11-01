@@ -121,6 +121,13 @@ pub fn create_directory(path: &str, uid: i32) -> bool {
     is_directory(path)
 }
 
+pub fn remove_directory(path: &str) -> bool {
+    let Ok(c_path) = CString::new(path) else {
+        return false;
+    };
+    unsafe { libc::rmdir(c_path.as_ptr()) == 0 }
+}
+
 fn errno_is(target: c_int) -> bool {
     unsafe { *libc::__errno() == target }
 }

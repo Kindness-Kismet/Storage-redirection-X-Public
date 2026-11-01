@@ -8,6 +8,7 @@ import com.storage.redirect.x.data.repository.BackupExportResult
 import com.storage.redirect.x.data.repository.BackupRestoreRepository
 import com.storage.redirect.x.data.repository.ConfigRepository
 import com.storage.redirect.x.data.repository.RestoreResult
+import com.storage.redirect.x.data.service.MonitorService
 import com.storage.redirect.x.data.service.RootService
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -141,6 +142,9 @@ class SettingsViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isWorking = true) }
             val isSaved = configRepo.setFileMonitorEnabled(isEnabled)
+            if (isSaved && !isEnabled) {
+                MonitorService.clear()
+            }
             _uiState.update { it.copy(isWorking = false) }
             if (!isSaved) _events.emit(SettingsUiEvent.SaveFailed)
         }

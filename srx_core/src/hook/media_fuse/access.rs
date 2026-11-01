@@ -39,8 +39,6 @@ pub fn should_allow_configured_real_path_access(path: &str, caller_uid: i32) -> 
         policy::refresh_shared_uid_cache();
         packages = policy::get_packages_for_uid(caller_uid);
     }
-    packages.sort();
-    packages.dedup();
 
     let config = SettingsHub::instance();
     for package in packages {

@@ -55,13 +55,12 @@ object HomeDataCache {
         configRepo: ConfigRepository,
         packageManager: PackageManager,
         selfPackage: String,
+        forceReload: Boolean = false,
     ) {
-        if (loaded) return
+        if (loaded && !forceReload) return
 
-        val isInstalled = moduleRepo.isModuleInstalled()
-        moduleStatus = if (isInstalled) ModuleStatus.INSTALLED else ModuleStatus.NOT_INSTALLED
-
-        if (isInstalled) {
+        moduleStatus = moduleRepo.getModuleStatus()
+        if (moduleStatus != ModuleStatus.NOT_INSTALLED) {
             moduleRepo.getInstalledVersion()?.let { moduleVersion = it }
         }
 
@@ -83,5 +82,14 @@ object HomeDataCache {
         AppPreferences.put(KEY_REDIRECT_COUNT, redirectCount)
 
         loaded = true
+    }
+
+    // 轻量刷新统计生效次数
+    suspend fun refreshStats(moduleRepo: ModuleRepository) {
+        val count = moduleRepo.loadRedirectCount()
+        if (count != redirectCount) {
+            redirectCount = count
+            AppPreferences.put(KEY_REDIRECT_COUNT, count)
+        }
     }
 }

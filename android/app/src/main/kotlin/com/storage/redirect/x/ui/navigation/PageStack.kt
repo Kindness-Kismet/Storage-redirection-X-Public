@@ -6,7 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
@@ -25,8 +27,13 @@ import androidx.compose.ui.unit.LayoutDirection
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+// 页面准备就绪回调：页面完成首屏数据准备后调用，触发进场平移动画
+val LocalPageReady = compositionLocalOf<() -> Unit> { {} }
 
 // 页面栈：转场照搬 only_player 的 NavHost，下层页面始终保持组合，返回后状态不丢
 @Stable
@@ -46,10 +53,15 @@ class PageStack<T : Serializable> internal constructor(
     // 退出转场也播完后才为空
     val isEmpty: Boolean get() = entries.isEmpty()
 
-    fun push(route: T) {
-        val entry = PageEntry(route, isShown = false)
+    fun push(route: T, waitForReady: Boolean = false) {
+        val entry = PageEntry(route, isShown = false, waitForReady = waitForReady)
         entries.add(entry)
-        scope.launch { entry.time.animateTo(1f, pageTimeSpec()) }
+        scope.launch {
+            if (waitForReady) {
+                entry.awaitReady()
+            }
+            entry.startEnter(this)
+        }
     }
 
     fun pop() {
@@ -101,11 +113,36 @@ class PageStack<T : Serializable> internal constructor(
     }
 }
 
-internal class PageEntry<T>(val route: T, isShown: Boolean) {
+internal class PageEntry<T>(
+    val route: T,
+    isShown: Boolean,
+    private val waitForReady: Boolean = false,
+) {
     // 线性时间进度，0 为转场起点
     val time = Animatable(if (isShown) 1f else 0f)
     var isLeaving by mutableStateOf(false)
     var isRemoved by mutableStateOf(false)
+    private var isStarted = isShown
+    private val readyChannel = Channel<Unit>(Channel.CONFLATED)
+
+    fun notifyReady() {
+        readyChannel.trySend(Unit)
+    }
+
+    suspend fun awaitReady(timeoutMs: Long = 250L) {
+        if (!waitForReady || isStarted) return
+        withTimeoutOrNull(timeoutMs) {
+            readyChannel.receive()
+        }
+    }
+
+    fun startEnter(scope: CoroutineScope) {
+        if (isStarted) return
+        isStarted = true
+        scope.launch {
+            time.animateTo(1f, pageTimeSpec())
+        }
+    }
 
     // 1 为完全展示；进场与出场各自沿时间正向套曲线，对应 NavHost 的 enter 与 popExit
     fun shownFraction(): Float {
@@ -163,7 +200,9 @@ fun <T : Serializable> PageStackHost(
                         // 拦下触摸，避免穿透到下层页面
                         .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } },
                 ) {
-                    page(entry.route) { stack.pop(entry) }
+                    CompositionLocalProvider(LocalPageReady provides { entry.notifyReady() }) {
+                        page(entry.route) { stack.pop(entry) }
+                    }
                 }
             }
         }

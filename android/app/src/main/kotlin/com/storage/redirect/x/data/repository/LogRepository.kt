@@ -19,6 +19,10 @@ class LogRepository {
 
     suspend fun clear(): Boolean {
         if (!RootService.isRootAvailable()) return false
+        RootService.runCommand(
+            "for binary in ${Paths.MODULE_DIR}/bin/*/srx_logd; do " +
+                "[ -x \"\$binary\" ] || continue; \"\$binary\" control clear-all; break; done"
+        )
         return RootService.runCommand("echo \"\" > ${Paths.RUNNING_LOG}").isSuccess
     }
 

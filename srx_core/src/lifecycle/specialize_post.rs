@@ -1,9 +1,9 @@
 // 应用 specialize 后流程：读取挂载结果并安装 PLT Hook
 use super::RuntimeFlow;
 use crate::hook::InterceptHub;
+use crate::platform;
 use crate::platform::paths::monotonic_ms;
 use crate::platform::unique_fd::UniqueFd;
-use crate::platform::{self, anti_detect};
 use crate::zygisk::abi;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -21,19 +21,12 @@ impl RuntimeFlow {
         }
 
         if self.should_skip_post_work {
-            log_post_perf(self, "skip", 0, 0, 0, perf_started_ms);
+            log_post_perf(self, "skip", 0, 0, perf_started_ms);
             return;
         }
 
         if !self.should_redirect && !self.should_monitor {
-            let anti_started_ms = monotonic_ms();
-            // 无需重定向或监控的应用仍需命名匿名可执行区域
-            let named_count = anti_detect::name_anonymous_executable_regions();
-            let anti_ms = monotonic_ms().saturating_sub(anti_started_ms);
-            if named_count > 0 {
-                log::info!("anon regions named n={}", named_count);
-            }
-            log_post_perf(self, "bypass", 0, 0, anti_ms, perf_started_ms);
+            log_post_perf(self, "bypass", 0, 0, perf_started_ms);
             return;
         }
 
@@ -57,25 +50,14 @@ impl RuntimeFlow {
         }
 
         let hook_started_ms = monotonic_ms();
-        let is_redirect_via_hook = self.should_redirect && self.is_system_writer_hook_redirect;
-        install_plt_hook(&self.package_name, is_redirect_via_hook);
+        if self.is_system_writer_hook_redirect {
+            install_plt_hook(&self.package_name, true);
+        } else {
+            self.request_dlclose();
+        }
         let hook_ms = monotonic_ms().saturating_sub(hook_started_ms);
 
-        let anti_started_ms = monotonic_ms();
-        // Hook 安装后命名匿名可执行区域，覆盖模块代码和 hook trampoline
-        let named_count = anti_detect::name_anonymous_executable_regions();
-        let anti_ms = monotonic_ms().saturating_sub(anti_started_ms);
-        if named_count > 0 {
-            log::info!("anon regions named n={}", named_count);
-        }
-        log_post_perf(
-            self,
-            "done",
-            mount_wait_ms,
-            hook_ms,
-            anti_ms,
-            perf_started_ms,
-        );
+        log_post_perf(self, "done", mount_wait_ms, hook_ms, perf_started_ms);
     }
 }
 
@@ -108,7 +90,6 @@ fn log_post_perf(
     exit_reason: &str,
     mount_wait_ms: i64,
     hook_ms: i64,
-    anti_ms: i64,
     started_ms: i64,
 ) {
     let total_ms = monotonic_ms().saturating_sub(started_ms);
@@ -116,7 +97,7 @@ fn log_post_perf(
         return;
     }
     log::info!(
-        "perf post pkg={} pid={} exit={} redirect={} monitor={} hook_redirect={} mount_sent={} mount_applied={} mount_wait_ms={} hook_ms={} anti_ms={} total_ms={}",
+        "perf post pkg={} pid={} exit={} redirect={} monitor={} hook_redirect={} mount_sent={} mount_applied={} mount_wait_ms={} hook_ms={} total_ms={}",
         flow.package_name,
         flow.app_pid,
         exit_reason,
@@ -127,7 +108,6 @@ fn log_post_perf(
         flow.is_mount_applied,
         mount_wait_ms,
         hook_ms,
-        anti_ms,
         total_ms
     );
 }

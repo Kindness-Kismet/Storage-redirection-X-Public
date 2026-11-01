@@ -2,8 +2,6 @@
 
 MODDIR="/data/adb/modules/storage.redirect.x"
 LOGD_PID_FILE="$MODDIR/logs/.logd.pid"
-MEDIA_STATE_COLLECTOR_PID_FILE="$MODDIR/logs/.media_state_collector.pid"
-APP_STATUS_SNAPSHOT_PID_FILE="$MODDIR/logs/.app_status_snapshot.pid"
 CONFIG_EVENT_COLLECTOR_PID_FILE="$MODDIR/logs/.config_event_collector.pid"
 PACKAGE_EVENT_COLLECTOR_PID_FILE="$MODDIR/logs/.package_event_collector.pid"
 
@@ -42,8 +40,6 @@ if [ -r /dev/srx_file_monitor.pid ]; then
 fi
 rm -f /dev/srx_file_monitor_health.json
 stop_collector_by_pid_file "$LOGD_PID_FILE"
-stop_collector_by_pid_file "$MEDIA_STATE_COLLECTOR_PID_FILE"
-stop_collector_by_pid_file "$APP_STATUS_SNAPSHOT_PID_FILE"
 stop_collector_by_pid_file "$CONFIG_EVENT_COLLECTOR_PID_FILE"
 stop_collector_by_pid_file "$PACKAGE_EVENT_COLLECTOR_PID_FILE"
 
