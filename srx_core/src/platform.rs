@@ -1,4 +1,3 @@
-pub mod anti_detect;
 pub mod elf_img;
 pub mod fs;
 pub mod gnu_debugdata;

@@ -274,6 +274,24 @@ impl MountPlanner {
         }
         true
     }
+
+    pub(super) fn detach_mount(&self, target: &str) -> bool {
+        let Ok(c_target) = CString::new(target) else {
+            return false;
+        };
+        let ret = unsafe { libc::umount2(c_target.as_ptr(), libc::MNT_DETACH) };
+        if ret != 0 {
+            log::warn!(
+                "detach mount failed target={} errno={} {}",
+                target,
+                last_errno(),
+                errno_text()
+            );
+            return false;
+        }
+        log::info!("detached mount target={}", target);
+        true
+    }
 }
 
 fn last_errno() -> i32 {

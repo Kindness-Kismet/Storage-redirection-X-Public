@@ -1,7 +1,7 @@
 use super::MountPlanner;
 use super::rules::{REAL_PATH_WILDCARD_EXPAND_LIMIT, has_path_wildcard, reduce_real_path_rules};
 use crate::domain::PathMapping;
-use crate::platform::{fs, module_paths, paths};
+use crate::platform::{fs, paths};
 
 impl MountPlanner {
     pub fn apply_sdcard_redirect(
@@ -51,12 +51,9 @@ impl MountPlanner {
             android_path
         );
 
-        let real_storage_anchor_root = format!("{}/tmp/real_storage", module_paths::MODULE_DIR);
-        let real_storage_anchor = format!("{}/{}", real_storage_anchor_root, self.user_id);
+        let real_storage_anchor = format!("/storage/.srx_anchor_{}", self.user_id);
         let mut is_real_storage_anchor_ready = false;
-        if self.ensure_directory_exists(&real_storage_anchor_root, false)
-            && self.ensure_directory_exists(&real_storage_anchor, false)
-        {
+        if self.ensure_directory_exists(&real_storage_anchor, false) {
             for source_candidate in self.expand_storage_alias_paths(&storage_path) {
                 if !fs::is_directory(&source_candidate) {
                     continue;
@@ -79,14 +76,23 @@ impl MountPlanner {
             );
         }
 
+        let cleanup_anchor = |ready: bool| {
+            if ready {
+                self.detach_mount(&real_storage_anchor);
+                let _ = fs::remove_directory(&real_storage_anchor);
+            }
+        };
+
         let data_media_root = format!("/data/media/{}", self.user_id);
         if !fs::is_directory(&data_media_root) {
+            cleanup_anchor(is_real_storage_anchor_ready);
             log::error!("data/media missing: {}", data_media_root);
             return false;
         }
 
         let android_source_path = format!("{}/Android", data_media_root);
         if !self.ensure_directory_exists(&resolved_target, false) {
+            cleanup_anchor(is_real_storage_anchor_ready);
             log::error!("mkdir redirect failed: {}", resolved_target);
             return false;
         }
@@ -98,6 +104,7 @@ impl MountPlanner {
 
         let redirect_android_path = format!("{}/Android", resolved_target);
         if !self.ensure_directory_exists(&redirect_android_path, true) {
+            cleanup_anchor(is_real_storage_anchor_ready);
             log::error!("mkdir android placeholder failed");
             return false;
         }
@@ -113,11 +120,13 @@ impl MountPlanner {
             Some("storage alias mount ok"),
             Some(&mut is_storage_redirect_applied),
         ) {
+            cleanup_anchor(is_real_storage_anchor_ready);
             log::error!("storage redirect failed");
             return false;
         }
 
         if !is_storage_redirect_applied {
+            cleanup_anchor(is_real_storage_anchor_ready);
             log::error!("storage redirect failed (no mount point)");
             return false;
         }
@@ -133,10 +142,12 @@ impl MountPlanner {
             Some("android alias restore ok"),
             Some(&mut is_android_restore_applied),
         ) {
+            cleanup_anchor(is_real_storage_anchor_ready);
             log::error!("android restore failed");
             return false;
         }
         if !is_android_restore_applied {
+            cleanup_anchor(is_real_storage_anchor_ready);
             log::error!("android restore failed (no mount point)");
             return false;
         }
@@ -144,9 +155,9 @@ impl MountPlanner {
         let mut restored_real_paths = vec![android_path];
         if !allowed_real_paths.is_empty() {
             let real_base_path = if is_real_storage_anchor_ready {
-                real_storage_anchor
+                real_storage_anchor.as_str()
             } else {
-                data_media_root.clone()
+                data_media_root.as_str()
             };
 
             let mut resolved_paths: Vec<String> = Vec::with_capacity(allowed_real_paths.len());
@@ -178,7 +189,7 @@ impl MountPlanner {
             for rule in effective_rules {
                 if has_path_wildcard(&rule) {
                     let expanded =
-                        Self::expand_real_path_wildcard(&rule, &storage_path, &real_base_path);
+                        Self::expand_real_path_wildcard(&rule, &storage_path, real_base_path);
                     if expanded.is_empty() {
                         log::warn!("allow wildcard no match: {}", rule);
                     } else if expanded.len() >= REAL_PATH_WILDCARD_EXPAND_LIMIT {
@@ -238,6 +249,8 @@ impl MountPlanner {
                 }
             }
         }
+
+        cleanup_anchor(is_real_storage_anchor_ready);
 
         // 排除覆盖恢复的真实目录，显式映射随后覆盖排除，保持与路径路由一致。
         if !self.apply_excluded_real_paths(
