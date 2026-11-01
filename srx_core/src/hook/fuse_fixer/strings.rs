@@ -103,7 +103,7 @@ fn resolve_from_libcxx(name: &[u8]) -> Option<usize> {
         return Some(addr as usize);
     }
 
-    let handle = unsafe { libc::dlopen(b"libc++.so\0".as_ptr() as *const _, libc::RTLD_NOW) };
+    let handle = unsafe { libc::dlopen(c"libc++.so".as_ptr(), libc::RTLD_NOW) };
     if !handle.is_null() {
         let addr = unsafe { libc::dlsym(handle, c_str.as_ptr()) };
         unsafe { libc::dlclose(handle) };
