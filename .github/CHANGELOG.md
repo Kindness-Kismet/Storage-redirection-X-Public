@@ -8,6 +8,8 @@
 - Reduce installation package size with architecture-specific builds
 - Fix boot protection falsely disabling the module and repeatedly disabling it across reboots
 
+Thanks to [@People-11](https://github.com/People-11) for the improvements contributed in [#66](https://github.com/Kindness-Kismet/Storage-redirection-X-Public/pull/66)!
+
 ---
 
 - 增强存储隔离，防止应用通过检测重定向来绕过规则
@@ -19,3 +21,5 @@
 - 修复模糊效果断层、底栏遮罩和页面切换时内容延迟出现的问题
 - 按设备架构打包，缩小安装包体积
 - 修复开机保护误停用模块及反复停用的问题
+
+感谢 [@People-11](https://github.com/People-11) 通过 [#66](https://github.com/Kindness-Kismet/Storage-redirection-X-Public/pull/66) 贡献的多项改进！
