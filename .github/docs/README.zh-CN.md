@@ -39,7 +39,7 @@ Android Zygisk 模块 + Kotlin Compose 管理应用，用于存储重定向。
 - 支持多用户分别配置，每个用户都有独立规则，对应 `users.{userId}`。
 - 支持每个应用配置真实路径规则 `allowed_real_paths` 和路径改写规则 `path_mappings`。
 - 管理应用支持共享 UID 同步，关联包可以保持一致规则。
-- 提供运行日志、文件监控日志、模板、备份还原、更新检查和界面设置。
+- 提供运行日志、文件监视日志、模板、备份还原、更新检查和界面设置。
 - 提供可选 FuseFixer，用于提升 MediaProvider FUSE 路径兼容性。
 
 ## 应用场景
@@ -48,7 +48,7 @@ Android Zygisk 模块 + Kotlin Compose 管理应用，用于存储重定向。
 - 你希望把高频写入应用隔离，降低路径冲突。
 - 你在多用户、第二用户或工作资料场景中，需要不同用户不同策略。
 - 你需要为特定应用做精确的请求路径到最终路径映射。
-- 你需要通过文件监控查看规则是否生效。
+- 你需要通过文件监视查看规则是否生效。
 
 ## 开始
 
@@ -169,7 +169,7 @@ Android Zygisk 模块 + Kotlin Compose 管理应用，用于存储重定向。
 }
 ```
 
-- `file_monitor_enabled`: 开启文件操作监控，覆盖 MediaProvider 和已启用重定向的应用。
+- `file_monitor_enabled`: 开启文件操作监视，覆盖 MediaProvider 和已启用重定向的应用。
 - `fuse_fixer_enabled`: 开启可选的 MediaProvider FUSE 路径兼容 Hook。
 
 ### 应用配置 `apps/<包名>.json` 样板

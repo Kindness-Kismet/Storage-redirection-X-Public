@@ -106,10 +106,9 @@ fun SrxSmallTopAppBar(
     )
 }
 
-// 二级页返回键：在 miuix 导航区 16dp 之外再留 12dp
 @Composable
 fun SrxBackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    IconButton(onClick = onClick, modifier = modifier.padding(start = 12.dp)) {
+    IconButton(onClick = onClick, modifier = modifier) {
         Icon(AppIcons.Back, contentDescription = stringResource(R.string.common_back))
     }
 }
