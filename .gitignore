@@ -93,6 +93,8 @@
 !/.claude/skills/pull-request/SKILL.md
 !/.claude/skills/version-bump/
 !/.claude/skills/version-bump/SKILL.md
+!/.claude/skills/update-dependencies/
+!/.claude/skills/update-dependencies/SKILL.md
 !/.codex/
 !/.codex/skills/
 !/.codex/skills/commit/
@@ -101,3 +103,5 @@
 !/.codex/skills/pull-request/SKILL.md
 !/.codex/skills/version-bump/
 !/.codex/skills/version-bump/SKILL.md
+!/.codex/skills/update-dependencies/
+!/.codex/skills/update-dependencies/SKILL.md

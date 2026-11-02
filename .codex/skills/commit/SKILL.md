@@ -16,7 +16,7 @@ Keep the source, configuration, lockfile, and integration changes required for o
 ## Workflow
 
 1. Confirm the repository, current branch, upstream, and worktree with `git status --short --branch`. Inspect staged and unstaged changes separately. Do not switch branches or absorb unrelated changes.
-2. Verify the final behavior using the checks appropriate to the changed paths. Run clippy for `srx_core/` changes and `lintDebug` for `android/` changes. Do not create test files by default; run existing checks where relevant.
+2. Verify the final behavior using the checks appropriate to the changed paths and repository. In the main repository, run clippy for `srx_core/` changes and `lintDebug` for `android/` changes; in a submodule, use its own manifest and supported targets. Do not create test files by default; run existing checks where relevant.
 3. Check each new path with `git check-ignore --no-index -v <path>`. A final negated pattern permits tracking; a positive pattern excludes it. Keep build artifacts, credentials, and local plans or records out of the index. Do not bypass the allowlist with `git add -f`.
 4. Stage explicit paths with `git add -- <path>`. To stop tracking an authorized file, confirm its absolute path and use `git rm --cached -- <path>` so its local copy remains intact. Never use broad staging commands.
 5. Review `git diff --cached --check` and the complete `git diff --cached`. Confirm scope, required build inputs, license notices, and actual verification results before committing. Do not commit incomplete work or claim failed checks passed.
@@ -24,11 +24,19 @@ Keep the source, configuration, lockfile, and integration changes required for o
 7. Verify the saved message with `git log -1 --format=%B` and inspect `git status --short --branch`.
 8. Complete the Rust formatting phase below before finishing. If the worktree was already clean at entry, skip creating a task commit and start that phase directly. Report all commit IDs, scopes, verification results, and remaining worktree changes.
 
+## Owned Submodules
+
+Inspect the local worktrees of `srx_core/third_party/srx_hook` and `srx_core/third_party/srx_inline_hook` during task review. Normally do not fetch, compare remote branches, or check for upstream updates in these repositories; do so only when the user requests it or the task explicitly requires remote synchronization.
+
+Review local changes before deciding ownership. Promptly verify and atomically commit completed, task-related changes inside each affected submodule using this skill. Preserve unrelated, unknown, or unfinished edits; a dirty submodule is not permission to commit everything.
+
+Commit the submodule first, then record its exact gitlink together with the necessary main-repository integration changes. A source-identical submodule import needs no empty child commit. Inspect both the child diff and the parent's gitlink diff. Local commits do not authorize pushing either repository; report child commits that must be published before others can reproduce the parent revision.
+
 ## Rust Formatting
 
 1. Start only with a clean index and worktree. If uncommitted changes exist, verify and commit the authorized changes first, following the workflow above; do not run even a formatting check before those commits. Preserve unrelated or unfinished changes and defer formatting until they are resolved. Do not stash, reset, or absorb them merely to obtain a clean worktree.
 2. Run `cargo fmt --all --check`. If it passes, no formatting commit is needed. If it reports formatting differences, run `cargo fmt --all`. Diagnose tool or parsing failures instead of treating them as formatting differences.
-3. Review the complete diff and confirm it contains only formatter-generated Rust changes. Run `cargo fmt --all --check` again and `cargo clippy --manifest-path srx_core/Cargo.toml --target aarch64-linux-android -- -D warnings`.
+3. Review the complete diff and confirm it contains only formatter-generated Rust changes. Run `cargo fmt --all --check` again and `cargo clippy --manifest-path srx_core/Cargo.toml --target aarch64-linux-android -- -D warnings` in the main repository; use the submodule's manifest and supported target when committing there.
 4. Stage only the explicit formatted paths, review `git diff --cached --check` and `git diff --cached`, and create one separate commit such as `chore: Format Rust sources`. Never mix formatting with functional changes or amend it into the preceding task commit.
 5. Verify the saved commit and clean worktree. This formatting-only commit completes the phase; do not recursively start another formatting phase for it.
 

@@ -129,7 +129,9 @@ MSYS_NO_PATHCONV=1 adb -s <device_id> exec-out screencap -d <display_id> -p > <o
 
 - `.gitignore` 默认忽略所有文件，只放行产品源码、测试代码、构建/安装/CI 必需配置与资源、许可证、共享 skills 和本规范。
 - 新增文件先用 `git check-ignore --no-index -v <路径>` 核对；只有真实项目输入才补充最小白名单，不用 `git add -f` 绕过规则。
-- 共享 skills 仅包括 `commit`、`pull-request`、`version-bump`，在 `.claude/skills/` 与 `.codex/skills/` 同步维护；其他现有设备调试技能仅供本地使用。
+- 共享 skills 包括 `commit`、`pull-request`、`version-bump`、`update-dependencies`，在 `.claude/skills/` 与 `.codex/skills/` 同步维护；其他现有设备调试技能仅供本地使用。
+- 检查或升级 Rust、Java/Kotlin/Android 依赖与官方 LSPlant 时使用 `update-dependencies` skill，按请求区分检查与实际升级。
+- `srx_hook` 与 `srx_inline_hook` 通常不检查远端更新；审查任务时仍须检查这两个子模块的本地状态。本次任务相关改动完成并验证后，及时按 `commit` skill 在子模块内原子提交，再由主仓库登记提交号；保留来源不明、无关或未完成的改动。
 - `CLAUDE.md` 仅保留 `@AGENTS.md`，规范只维护本文件一份。
 - 按当前任务授权修改分支；未经要求不切换、合并或删除分支。新功能分支使用 `feature/<name>` 或 `fix/<name>`。
 - 所有仓库的每次提交都必须是原子提交，包括主仓库、子模块、版本提升和格式整理：一个提交只处理一个可独立审查的目的，不把多个独立需求混在一起；同一目的必需的源码、配置和锁文件一起提交。
