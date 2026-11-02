@@ -89,7 +89,7 @@ public final class ThumbnailHooks extends Hooker {
 
   private Object handleRequest(Object[] args) throws Throwable {
     int uid = Binder.getCallingUid();
-    if (uid % 100000 < 10000 || uid == android.os.Process.myUid())
+    if (uid % 100000 < 10000 || uid == android.os.Process.myUid() || !Hooker.shouldFilterCaller(uid))
       return callBackup(args);
     Request previous = REQUEST.get();
     Request request = new Request(uid, (ContentProvider) args[0],

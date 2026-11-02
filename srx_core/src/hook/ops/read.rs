@@ -3,12 +3,13 @@ use super::super::runtime;
 use libc::{c_int, c_void, fstat, readlink};
 use std::ffi::CString;
 use std::mem::MaybeUninit;
-use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 
 static CACHED_FUSE_FD: AtomicI32 = AtomicI32::new(-1);
 static CACHED_FUSE_FD_DEV: AtomicU64 = AtomicU64::new(0);
 static CACHED_FUSE_FD_INO: AtomicU64 = AtomicU64::new(0);
 static FUSE_CACHE_INVALIDATE_COUNT: AtomicU64 = AtomicU64::new(0);
+static NON_FUSE_FDS: [AtomicBool; 1024] = [const { AtomicBool::new(false) }; 1024];
 const FUSE_CACHE_LOG_SAMPLE_STEP: u64 = 128;
 
 #[repr(C)]
@@ -24,8 +25,21 @@ struct FuseInHeader {
 
 // 借用 FUSE 协议头提取真实调用方 UID/PID
 pub unsafe extern "C" fn hooked_read(fd: c_int, buf: *mut c_void, count: usize) -> isize {
-    // 同一请求内可能先探测再创建文件，身份保留到下一次读取 FUSE 请求。
-    if fd == CACHED_FUSE_FD.load(Ordering::Relaxed) {
+    let cached_fd = CACHED_FUSE_FD.load(Ordering::Relaxed);
+    if cached_fd >= 0 && fd != cached_fd {
+        let self_ptr = hooked_read as *mut c_void;
+        return runtime::call_prev_lazy(
+            self_ptr,
+            || libc::read(fd, buf, count),
+            |prev| {
+                let f: unsafe extern "C" fn(c_int, *mut c_void, usize) -> isize =
+                    std::mem::transmute(prev);
+                f(fd, buf, count)
+            },
+        );
+    }
+
+    if fd == cached_fd {
         context::clear_fuse_caller_uid();
     }
     let self_ptr = hooked_read as *mut c_void;
@@ -43,13 +57,25 @@ pub unsafe extern "C" fn hooked_read(fd: c_int, buf: *mut c_void, count: usize) 
         return result;
     }
 
-    let cached_fd = CACHED_FUSE_FD.load(Ordering::Relaxed);
     if cached_fd == -2 {
         return result;
     }
 
     if cached_fd == -1 {
-        if !is_fuse_fd(fd) || !cache_fuse_fd(fd) {
+        if fd >= 0
+            && (fd as usize) < NON_FUSE_FDS.len()
+            && NON_FUSE_FDS[fd as usize].load(Ordering::Relaxed)
+        {
+            return result;
+        }
+
+        if !is_fuse_fd(fd) {
+            if fd >= 0 && (fd as usize) < NON_FUSE_FDS.len() {
+                NON_FUSE_FDS[fd as usize].store(true, Ordering::Relaxed);
+            }
+            return result;
+        }
+        if !cache_fuse_fd(fd) {
             return result;
         }
     } else if fd == cached_fd && !is_cached_fuse_fd_match(fd) {
