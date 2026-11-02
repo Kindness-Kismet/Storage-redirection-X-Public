@@ -1,0 +1,6 @@
+[submodule "srx_core/third_party/srx_inline_hook"]
+	path = srx_core/third_party/srx_inline_hook
+	url = https://github.com/Kindness-Kismet/srx_inline_hook.git
+[submodule "srx_core/third_party/lsplant"]
+	path = srx_core/third_party/lsplant
+	url = https://github.com/LSPosed/LSPlant.git

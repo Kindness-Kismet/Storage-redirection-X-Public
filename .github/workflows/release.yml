@@ -148,6 +148,11 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v7.0.0
+        with:
+          submodules: true
+
+      - name: 初始化 LSPlant 构建依赖
+        run: git -C srx_core/third_party/lsplant submodule update --init --recursive -- lsplant/src/main/jni/external/dex_builder
 
       - name: 配置 Java
         uses: actions/setup-java@v5.4.0
@@ -177,7 +182,7 @@ jobs:
         shell: bash
         run: |
           (yes | sdkmanager --licenses > /dev/null) || true
-          ndk_version="29.0.14206865"
+          ndk_version="30.0.16248370"
           latest_cmake_pkg=$(sdkmanager --list | tr -d '\r' | grep -oE 'cmake;[0-9][0-9.]+' | sort -Vu | tail -n 1)
           sdkmanager "ndk;${ndk_version}" "${latest_cmake_pkg}"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${ndk_version}" >> "${GITHUB_ENV}"

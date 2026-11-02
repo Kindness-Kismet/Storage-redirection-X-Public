@@ -12,7 +12,7 @@ Storage Redirect X 由 Android 配置应用和 Rust Zygisk 模块组成，通过
 | `srx_core/src/` | Rust 核心与日志守护进程 |
 | `srx_core/java_src/` | Java Hook 源码，构建时生成内嵌 DEX |
 | `srx_core/native/` | LSPlant C++ 桥接与 CMake 入口 |
-| `srx_core/vendor/lsplant/` | LSPlant、DexBuilder 与 parallel_hashmap 源码及许可证 |
+| `srx_core/third_party/` | LSPlant 与内联 Hook 库 Git 子模块，保留上游依赖、许可证及独立提交历史 |
 | `assets/zygisk_module/` | 模块安装、启动、卸载脚本与 SELinux 规则 |
 | `scripts/build.py` | Android 构建与 Zygisk 构建、打包入口 |
 | `.github/` | CI、设备验证脚本与发布更新日志 |
@@ -94,6 +94,8 @@ Storage Redirect X 由 Android 配置应用和 Rust Zygisk 模块组成，通过
 ## 构建与验证
 
 依赖版本以 `android/gradle/libs.versions.toml` 和 `srx_core/Cargo.toml` 为准，版本号以 `android/gradle.properties` 与 Rust package version 为准。
+
+首次检出或更新依赖后，按构建说明初始化子模块及 LSPlant 的 DexBuilder 依赖；不初始化上游测试工程的私有依赖。自有底层库修改在子模块内提交，再由主仓库记录对应提交号。
 
 ```bash
 python scripts/build.py build-zygisk --abi arm64-v8a --debug

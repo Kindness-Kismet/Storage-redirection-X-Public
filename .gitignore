@@ -1,6 +1,7 @@
 # 默认忽略文件，只放行产品、构建输入与共享规范。
 *
 !/.gitignore
+!/.gitmodules
 !/AGENTS.md
 !/CLAUDE.md
 !/README.md
@@ -46,18 +47,14 @@
 !/srx_core/native/
 !/srx_core/native/CMakeLists.txt
 !/srx_core/native/*.cpp
-!/srx_core/vendor/
-!/srx_core/vendor/lsplant/
-!/srx_core/vendor/lsplant/**/
-!/srx_core/vendor/lsplant/**/*.cc
-!/srx_core/vendor/lsplant/**/*.cpp
-!/srx_core/vendor/lsplant/**/*.cxx
-!/srx_core/vendor/lsplant/**/*.h
-!/srx_core/vendor/lsplant/**/*.hpp
-!/srx_core/vendor/lsplant/**/*.ixx
-!/srx_core/vendor/lsplant/**/*.cmake
-!/srx_core/vendor/lsplant/**/CMakeLists.txt
-!/srx_core/vendor/lsplant/**/LICENSE*
+!/srx_core/native/cmake/
+!/srx_core/native/cmake/**/
+!/srx_core/native/cmake/**/*.cmake
+
+# 独立维护的第三方库子模块。
+!/srx_core/third_party/
+!/srx_core/third_party/srx_inline_hook
+!/srx_core/third_party/lsplant
 
 # 构建脚本与模块安装、运行资源。
 !/scripts/

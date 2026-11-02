@@ -259,6 +259,15 @@ Config directory on device:
 
 ## Build
 
+首次构建前初始化底层库子模块：
+
+```bash
+git submodule update --init
+git -C srx_core/third_party/lsplant submodule update --init --recursive -- lsplant/src/main/jni/external/dex_builder
+```
+
+CMake 会下载并校验固定版本的官方 libcxx 包，用于构建 LSPlant 标准库模块。
+
 Supported ABIs:
 
 - `arm64-v8a`
@@ -311,7 +320,7 @@ Useful options:
 - Python 3.10+
 - JDK with `javac` available
 - Android SDK with build-tools (`d8`) and platform `android-37`
-- Android NDK for `arm64-v8a` / `x86_64`
+- Android NDK `30.0.16248370`，与 LSPlant 使用的 libcxx 版本一致
 - CMake 3.28+
 - Ninja
 - Rust toolchain (`>= 1.93.1`) with Android targets installed

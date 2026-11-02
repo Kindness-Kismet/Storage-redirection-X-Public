@@ -1,5 +1,7 @@
 [workspace]
-members = ["srx_core"]
+# 使用 glob，避免显式成员目录把内部的独立工作区强制并入。
+members = ["srx_*"]
+exclude = ["srx_core/third_party"]
 resolver = "3"
 
 [profile.release]

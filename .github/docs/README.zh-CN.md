@@ -259,6 +259,15 @@ Android Zygisk 模块 + Kotlin Compose 管理应用，用于存储重定向。
 
 ## 构建命令
 
+首次构建前初始化底层库子模块：
+
+```bash
+git submodule update --init
+git -C srx_core/third_party/lsplant submodule update --init --recursive -- lsplant/src/main/jni/external/dex_builder
+```
+
+CMake 会下载并校验固定版本的官方 libcxx 包，用于构建 LSPlant 标准库模块。
+
 支持的 ABI:
 
 - `arm64-v8a`
@@ -311,7 +320,7 @@ PYTHONUTF8=1 python scripts/build.py build-all --debug
 - Python 3.10+
 - 可用的 JDK 和 `javac`
 - Android SDK，包含 build-tools 里的 `d8` 和 `android-37` 平台
-- Android NDK，支持 `arm64-v8a` / `x86_64`
+- Android NDK `30.0.16248370`，与 LSPlant 使用的 libcxx 版本一致
 - CMake 3.28+
 - Ninja
 - Rust 工具链版本 `>= 1.93.1`，并安装 Android 目标
