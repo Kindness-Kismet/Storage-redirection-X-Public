@@ -7,6 +7,8 @@ description: Prepare, review, describe, or create a pull request for Storage Red
 
 Keep one pull request focused on one independently reviewable topic. Follow `AGENTS.md` and apply the commit skill before creating or amending commits.
 
+Every constituent commit must remain atomic under the commit skill. Do not combine independent purposes merely because they share a pull request, release, or user request.
+
 ## Scope and Branches
 
 1. Confirm the repository, remote, current branch, base branch, and clean or task-owned worktree state. Default the base to `main` unless the user specifies another branch.

@@ -7,6 +7,12 @@ description: Prepare, review, and create Git commits for Storage Redirect X. Use
 
 Create an atomic commit promptly after each independently working requirement passes its necessary checks. Include only changes belonging to that requirement and follow `AGENTS.md`.
 
+## Atomic Scope
+
+Every commit must be atomic in the main repository and in submodules, including release, formatting, and amended commits. One commit serves one independently reviewable purpose; a request containing several unrelated changes requires separate commits.
+
+Keep the source, configuration, lockfile, and integration changes required for one purpose together. Separate independent fixes, dependency upgrades, version bumps, and formatting. When a file contains multiple purposes, stage the relevant hunks rather than bundling the whole file. Do not rewrite existing history to enforce this rule without an explicit request.
+
 ## Workflow
 
 1. Confirm the repository, current branch, upstream, and worktree with `git status --short --branch`. Inspect staged and unstaged changes separately. Do not switch branches or absorb unrelated changes.

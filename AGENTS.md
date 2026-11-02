@@ -132,7 +132,8 @@ MSYS_NO_PATHCONV=1 adb -s <device_id> exec-out screencap -d <display_id> -p > <o
 - 共享 skills 仅包括 `commit`、`pull-request`、`version-bump`，在 `.claude/skills/` 与 `.codex/skills/` 同步维护；其他现有设备调试技能仅供本地使用。
 - `CLAUDE.md` 仅保留 `@AGENTS.md`，规范只维护本文件一份。
 - 按当前任务授权修改分支；未经要求不切换、合并或删除分支。新功能分支使用 `feature/<name>` 或 `fix/<name>`。
-- 每完成一项可正常工作的需求并通过必要验证后，及时按 `commit` skill 创建一次原子提交，不等待用户再次催促；只添加具体路径，执行 `git commit`（含 `--amend`）前复核 `git diff --cached`。
+- 所有仓库的每次提交都必须是原子提交，包括主仓库、子模块、版本提升和格式整理：一个提交只处理一个可独立审查的目的，不把多个独立需求混在一起；同一目的必需的源码、配置和锁文件一起提交。
+- 每完成一项可正常工作的需求并通过必要验证后，及时按 `commit` skill 单独提交，不等待用户再次催促；按目的暂存具体路径或代码块，执行 `git commit`（含 `--amend`）前复核 `git diff --cached`。不为落实新规范擅自改写已有历史。
 - 提交标题和正文使用英文，标题为 `type: imperative summary`，最多 70 字符；正文说明原因、最终行为与验证结果。
 - 推送前说明修改内容、远端和分支，等待用户明确确认；禁止擅自强推公开历史。
 - 准备、审查或创建 PR 时使用 `pull-request` skill；一个 PR 围绕一个主题，按授权发布，不把创建 skill 当作创建 PR 的许可。

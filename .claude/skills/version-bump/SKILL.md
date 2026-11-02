@@ -6,7 +6,7 @@ user_invocable: true
 
 ## 流程
 
-1. **检查未提交改动**：如果有未提交文件，先查看具体改动；按改动范围执行格式化与校验后单独提交，提交只包含这些业务改动，禁止把版本号与 changelog 混入同一个提交
+1. **检查未提交改动**：先使用 `commit` 技能，按独立目的逐项审查、验证并原子提交已获授权的业务改动；不得把多个业务目的合并，也不得夹带版本号与 changelog。格式整理遵守提交技能的独立提交顺序
 2. 读取 `android/gradle.properties` 中的 `appVersionName` 和 `appVersionCode`
 3. 确定新版本号：
    - 默认：patch +1（如 1.1.33 → 1.1.34），`appVersionCode` +1
@@ -18,7 +18,7 @@ user_invocable: true
 8. 修改 `android/gradle.properties` 的 `appVersionName` 和 `appVersionCode`
 9. 修改 `srx_core/Cargo.toml` 的 `version` 字段，保持与 app 版本号同步
 10. 覆盖写入 `.github/CHANGELOG.md`，不保留旧日志，仅保留本次新版本条目
-11. 直接提交，提交信息格式：`chore: bump version to {version}`；仅当第 7 步确认完整满足某个 issue 时，才在提交信息末尾追加 `close #xxxx`
+11. 使用 `commit` 技能创建仅包含版本号、必要锁文件与本次 changelog 的原子提交，提交信息格式：`chore: bump version to {version}`；仅当第 7 步确认完整满足某个 issue 时，才在提交信息末尾追加 `close #xxxx`
 
 ## 推送规则
 
