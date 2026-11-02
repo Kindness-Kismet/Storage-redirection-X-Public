@@ -41,6 +41,7 @@ Default to the latest stable release. Preserve an existing prerelease channel wh
   ```
 
 - Review native bridge API changes and `srx_core/native/cmake/cxx/cxxConfig.cmake`. Keep the official libcxx AAR, its SHA256, and the NDK/toolchain used locally and in CI compatible with the selected LSPlant revision. Update the related pins together when required.
+- The selected minimal libcxx omits exceptions and RTTI. Keep its consumers and generated standard-library modules on matching compiler options. Preserve strict undefined-symbol checks and link against the project's actual minimum Android API.
 
 ## Verification and Commits
 

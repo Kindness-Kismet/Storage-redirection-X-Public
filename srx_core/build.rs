@@ -21,6 +21,7 @@ fn main() {
 
     let mut link_args = vec![
         "-Wl,--gc-sections".to_string(),
+        "-Wl,-z,defs".to_string(),
         "-Wl,--exclude-libs,ALL".to_string(),
         "-Wl,--pack-dyn-relocs=none".to_string(),
         "-Wl,-soname,libsrx_core.so".to_string(),
@@ -88,7 +89,7 @@ fn build_lsplant_bridge(target_arch: &str, is_debug_build: bool) {
             ndk.join("build/cmake/android.toolchain.cmake").display()
         ))
         .arg(format!("-DANDROID_ABI={abi}"))
-        .arg("-DANDROID_PLATFORM=android-29")
+        .arg("-DANDROID_PLATFORM=android-31")
         .arg("-DANDROID_STL=none")
         .arg(format!("-DCMAKE_BUILD_TYPE={profile}"))
         .arg(format!("-DCMAKE_INSTALL_PREFIX={}", install_dir.display()))

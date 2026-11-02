@@ -4,9 +4,14 @@ project(srx_lsplant_bridge)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+# 官方精简 libcxx 不包含异常与 RTTI，标准库模块和调用方必须使用相同配置。
+add_compile_options(
+    $<$<COMPILE_LANGUAGE:CXX>:-nostdinc++>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+)
 set(cxx_DIR "${CMAKE_CURRENT_LIST_DIR}/cmake/cxx")
 find_package(cxx REQUIRED CONFIG)
-add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-nostdinc++>)
 
 if (NOT DEFINED SRX_INLINE_HOOK_INCLUDE_DIR)
     message(FATAL_ERROR "SRX_INLINE_HOOK_INCLUDE_DIR is required")
