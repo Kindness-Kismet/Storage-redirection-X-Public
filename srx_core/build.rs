@@ -115,11 +115,17 @@ fn build_lsplant_bridge(target_arch: &str, is_debug_build: bool) {
         let library = Path::new(library);
         println!(
             "cargo:rustc-link-search=native={}",
-            library.parent().expect("native library directory").display()
+            library
+                .parent()
+                .expect("native library directory")
+                .display()
         );
         println!(
             "cargo:rustc-link-lib=static:+verbatim={}",
-            library.file_name().expect("native library name").to_string_lossy()
+            library
+                .file_name()
+                .expect("native library name")
+                .to_string_lossy()
         );
     }
     println!("cargo:rustc-link-lib=z");
