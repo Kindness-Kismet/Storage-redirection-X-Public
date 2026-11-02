@@ -354,8 +354,8 @@
     <string name="file_monitor_gaps">未采集记录：%1$d；保存错误：%2$d</string>
     <string name="file_monitor_load_failed">读取监视日志失败</string>
     <string name="file_monitor_daemon_stale">日志服务未响应</string>
-    <string name="file_monitor_enabled">文件监控</string>
-    <string name="file_monitor_disabled">文件监控已关闭</string>
+    <string name="file_monitor_enabled">文件监视</string>
+    <string name="file_monitor_disabled">文件监视已关闭</string>
     <string name="file_monitor_action_update">更新</string>
     <string name="common_clear_filters">清除筛选</string>
     <string name="empty_templates_summary">把常用规则保存为模板，方便应用到其他应用。</string>

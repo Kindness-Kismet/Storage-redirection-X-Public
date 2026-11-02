@@ -233,6 +233,33 @@ pub fn run(module: &Path, before: i64, after: i64, limit: usize) -> io::Result<(
     Ok(())
 }
 
+pub fn clear(module_dir: &Path) -> io::Result<()> {
+    let file = module_dir.join("logs/monitor/file_monitor.db");
+    if !file.exists() {
+        return Ok(());
+    }
+    let api = Api::load()?;
+    let c_path = CString::new(file.as_os_str().as_encoded_bytes())?;
+    let mut db = ptr::null_mut();
+    let code = unsafe { (api.open)(c_path.as_ptr(), &mut db, 2, ptr::null()) };
+    if code != 0 {
+        if !db.is_null() {
+            unsafe {
+                (api.close)(db);
+            }
+        }
+        return Err(io::Error::other(format!(
+            "open monitor database: SQLite {code}"
+        )));
+    }
+    let connection = Connection { api: &api, db };
+    let statement = connection.statement(c"DELETE FROM records")?;
+    unsafe {
+        (api.step)(statement.stmt);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

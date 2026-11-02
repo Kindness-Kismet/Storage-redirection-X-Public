@@ -466,10 +466,6 @@ private fun MonitorEntryCard(
             )
             StatusTag(label = resultLabel, color = resultColor, modifier = Modifier.padding(start = FILE_MONITOR_ICON_GAP))
         }
-        if (isExpanded) {
-            Text(entry.timestamp, modifier = Modifier.padding(top = FILE_MONITOR_PATH_TOP_SPACING),
-                style = MiuixTheme.textStyles.footnote1, color = colorScheme.onSurfaceVariantSummary)
-        }
         Text(
             text = entry.displayPath,
             modifier = Modifier.padding(top = FILE_MONITOR_PATH_TOP_SPACING),
@@ -498,10 +494,6 @@ private fun MonitorAppIcon(drawable: Drawable?, modifier: Modifier = Modifier) {
     }
 }
 
-// 提取 HH:mm 时间部分
-private fun formatTimestamp(timestamp: String): String {
-    val parts = timestamp.split(" ")
-    if (parts.size < 2) return timestamp
-    val time = parts[1]
-    return if (time.length >= 5) time.substring(0, 5) else time
-}
+// 提取详细时间部分（去掉毫秒）
+private fun formatTimestamp(timestamp: String): String =
+    timestamp.substringBeforeLast('.')
