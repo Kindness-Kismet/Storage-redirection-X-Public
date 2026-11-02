@@ -42,7 +42,9 @@ Explain why the change is needed, its final behavior, and the checks actually pe
 
 ## Push and Amend
 
-Create the local commit first. Before pushing, describe the changes, remote, target branch, and all outgoing commits; wait for explicit approval. Follow any stricter task-specific push rule, including the version-bump skill.
+Create the local commit first. Before any push, identify the repository, remote, target branches or tags, and outgoing commits; obtain explicit approval for that exact operation. A commit or PR request is not push permission.
+
+Each approval authorizes one current push attempt and expires when that attempt is made. Ask again before retrying, changing the target or outgoing commits, pushing a submodule, or making any later push. Never reuse approval from an earlier turn, session, or repository. Do not initiate an unrelated push; retain the version-bump skill's restriction on proactively offering to push.
 
 Amend only unpublished task-owned commits when authorized. Do not rewrite public history or force-push without separate explicit approval.
 

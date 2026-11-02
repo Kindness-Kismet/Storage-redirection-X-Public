@@ -38,6 +38,6 @@ Do not claim a check passed unless it ran successfully. Do not copy raw logs or 
 
 ## Publication
 
-Preparing text does not authorize remote changes. Describe the exact remote, head, base, outgoing commits, and PR text before publishing under the user's authorization. Pushing still requires explicit approval under the commit skill.
+Preparing text does not authorize remote changes. Describe the exact remote, head, base, outgoing commits, and PR text before publishing under the user's authorization. PR authorization does not authorize a push. Each push requires its own one-use approval under the commit skill, including retries and submodule pushes.
 
 After creation, report the PR URL, actual head and base, and any outstanding verification. Never force-push or merge the PR without separate explicit approval.
