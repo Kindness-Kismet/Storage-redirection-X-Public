@@ -9,6 +9,7 @@ import argparse
 import hashlib
 import json
 import platform
+import re
 import shutil
 import subprocess
 import time
@@ -156,30 +157,79 @@ def read_sdk_dir_from_local_properties(project_root: Path) -> Path | None:
 
 
 def find_android_sdk(project_root: Path) -> Path | None:
+    local_sdk = read_sdk_dir_from_local_properties(project_root)
+    if local_sdk and local_sdk.exists():
+        return local_sdk
     for key in ("ANDROID_SDK_ROOT", "ANDROID_HOME"):
         value = os.environ.get(key)
         if value and Path(value).exists():
             return Path(value)
-    local_sdk = read_sdk_dir_from_local_properties(project_root)
-    if local_sdk and local_sdk.exists():
-        return local_sdk
     home = Path.home()
     candidates = [home / "Android" / "Sdk", home / "AppData" / "Local" / "Android" / "Sdk"]
     return next((path for path in candidates if path.exists()), None)
 
 
-def find_ndk(project_root: Path) -> Path | None:
+def version_key(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", value))
+
+
+def resolve_native_build_tools(project_root: Path, sdk: Path) -> tuple[Path, Path]:
+    cmake_config = (project_root / "srx_core/native/CMakeLists.txt").read_text(encoding="utf-8")
+    requirement = re.search(r"cmake_minimum_required\(VERSION\s+([\d.]+)", cmake_config)
+    if requirement is None:
+        fail("CMake minimum version missing in srx_core/native/CMakeLists.txt")
+    minimum = version_key(requirement.group(1))
+    executable = "cmake.exe" if os.name == "nt" else "cmake"
+    candidates = sorted((sdk / "cmake").glob(f"*/bin/{executable}"),
+                        key=lambda path: version_key(path.parent.parent.name), reverse=True)
+    system_cmake = shutil.which("cmake")
+    if system_cmake:
+        candidates.append(Path(system_cmake))
+    for cmake in candidates:
+        result = subprocess.run([str(cmake), "--version"], capture_output=True, text=True)
+        match = re.search(r"cmake version ([\d.]+)", result.stdout)
+        if result.returncode != 0 or match is None or version_key(match.group(1)) < minimum:
+            continue
+        ninja = cmake.parent / ("ninja.exe" if os.name == "nt" else "ninja")
+        if ninja.is_file():
+            return cmake, ninja
+        system_ninja = shutil.which("ninja")
+        if system_ninja:
+            return cmake, Path(system_ninja)
+        fail("Ninja not found; install the SDK CMake package or add ninja to PATH")
+    fail(f"CMake >= {requirement.group(1)} not found in {sdk / 'cmake'} or PATH")
+
+
+def prepare_android_environment(console: Console, project_root: Path,
+                                sdk_arg: str | None, native: bool) -> dict[str, str]:
+    sdk = normalize_windows_path(sdk_arg) if sdk_arg else find_android_sdk(project_root)
+    if sdk is None or not (sdk / "platforms").is_dir():
+        fail("Android SDK not found; use --sdk, android/local.properties or ANDROID_HOME")
+    sdk = sdk.resolve()
+    env = {"ANDROID_HOME": str(sdk), "ANDROID_SDK_ROOT": str(sdk)}
+    console.ok(f"sdk={sdk}")
+    paths = []
+    if native:
+        cmake, ninja = resolve_native_build_tools(project_root, sdk)
+        paths.extend((str(cmake.parent), str(ninja.parent)))
+        console.ok(f"cmake={cmake} ninja={ninja}")
+    env["PATH"] = os.pathsep.join([*dict.fromkeys(paths), os.environ.get("PATH", "")])
+    return env
+
+
+def find_ndk(project_root: Path, sdk: Path | None = None) -> Path | None:
     for key in ("ANDROID_NDK_HOME", "NDK_ROOT"):
         value = os.environ.get(key)
         if value and Path(value).exists():
             return Path(value)
-    sdk = find_android_sdk(project_root)
+    sdk = sdk or find_android_sdk(project_root)
     if not sdk:
         return None
     ndk_dir = sdk / "ndk"
     if not ndk_dir.exists():
         return None
-    versions = sorted((path for path in ndk_dir.iterdir() if path.is_dir()), reverse=True)
+    versions = sorted((path for path in ndk_dir.iterdir() if path.is_dir()),
+                      key=lambda path: version_key(path.name), reverse=True)
     return versions[0] if versions else None
 
 
@@ -243,8 +293,8 @@ def ensure_rust_ready(console: Console, rust_root: Path) -> None:
         fail("cargo not found; install Rust toolchain first")
 
 
-def resolve_ndk(console: Console, project_root: Path, ndk_arg: str | None) -> Path:
-    ndk = Path(ndk_arg) if ndk_arg else find_ndk(project_root)
+def resolve_ndk(console: Console, project_root: Path, ndk_arg: str | None, sdk: Path) -> Path:
+    ndk = Path(ndk_arg) if ndk_arg else find_ndk(project_root, sdk)
     if not ndk:
         fail("Android NDK not found")
     if not ndk.exists():
@@ -253,7 +303,7 @@ def resolve_ndk(console: Console, project_root: Path, ndk_arg: str | None) -> Pa
     return ndk
 
 
-def build_rust_module(console: Console, project_root: Path, rust_root: Path, libs_output_dir: Path, ndk_path: Path, abi: str, debug: bool) -> None:
+def build_rust_module(console: Console, project_root: Path, libs_output_dir: Path, ndk_path: Path, abi: str, debug: bool, android_env: dict[str, str]) -> None:
     console.info(f"build Rust module abi={abi} so={CORE_SO_NAME}")
     target = resolve_rust_target(abi)
     toolchain_dir = ndk_path / "toolchains" / "llvm" / "prebuilt" / ndk_prebuilt_dir() / "bin"
@@ -265,11 +315,11 @@ def build_rust_module(console: Console, project_root: Path, rust_root: Path, lib
     if not clang:
         fail("NDK clang not found")
 
-    path_sep = ";" if os.name == "nt" else ":"
     env = {
+        **android_env,
         "ANDROID_NDK_HOME": str(ndk_path),
         f"CARGO_TARGET_{target.replace('-', '_').upper()}_LINKER": str(clang),
-        "PATH": f"{toolchain_dir}{path_sep}{os.environ.get('PATH', '')}",
+        "PATH": f"{toolchain_dir}{os.pathsep}{android_env['PATH']}",
     }
     if debug:
         env.update({
@@ -442,15 +492,16 @@ def build_zygisk(args: argparse.Namespace) -> None:
 
     version = read_version_info(project_root)
     console.info(f"module={MODULE_NAME} version={version.name} code={version.code}")
-    console.step(1, 3, "Prepare NDK")
-    ndk = resolve_ndk(console, project_root, args.ndk)
+    console.step(1, 3, "Prepare Android toolchain")
+    android_env = prepare_android_environment(console, project_root, args.sdk, native=True)
+    ndk = resolve_ndk(console, project_root, args.ndk, Path(android_env["ANDROID_HOME"]))
     ensure_rust_ready(console, project_root / "srx_core")
     abis = resolve_abis(args.abi)
     if args.debug:
         console.info("debug build: keep symbols, disable LTO, skip strip")
     console.step(2, 3, f"Build module abi={', '.join(abis)}")
     for abi in abis:
-        build_rust_module(console, project_root, project_root / "srx_core", libs_output_dir, ndk, abi, args.debug)
+        build_rust_module(console, project_root, libs_output_dir, ndk, abi, args.debug, android_env)
         strip_and_hash(console, libs_output_dir, abi, ndk, args.debug)
     console.step(3, 3, "Package module")
     package_module(console, project_root, project_root / "assets" / "zygisk_module", libs_output_dir, version, abis)
@@ -470,10 +521,11 @@ def build_apk(args: argparse.Namespace) -> None:
     console.info(f"version={version.name} abi={', '.join(abis)}")
     console.step(1, 2, "Build APK")
     android_dir = project_root / "android"
+    android_env = prepare_android_environment(console, project_root, args.sdk, native=False)
     gradle_args = ["assembleRelease"]
     if len(abis) == 1:
         gradle_args.append(f"-PtargetAbi={abis[0]}")
-    result = run_process(console, gradlew_path(project_root), gradle_args, cwd=android_dir)
+    result = run_process(console, gradlew_path(project_root), gradle_args, cwd=android_dir, env=android_env)
     if result.returncode != 0:
         fail("apk build failed")
     console.ok("apk build done")
@@ -527,10 +579,10 @@ def build_all(args: argparse.Namespace) -> None:
     console.info("module_output=build/zygisk apk_output=build/apk")
     clean_output_directories(console, project_root)
     console.step(1, 2, "Build Zygisk module")
-    zygisk_args = argparse.Namespace(clean=False, verbose=args.verbose, abi=args.abi, ndk=args.ndk, debug=args.debug)
+    zygisk_args = argparse.Namespace(clean=False, verbose=args.verbose, abi=args.abi, sdk=args.sdk, ndk=args.ndk, debug=args.debug)
     build_zygisk(zygisk_args)
     console.step(2, 2, "Build release APK")
-    apk_args = argparse.Namespace(verbose=args.verbose, abi=args.abi)
+    apk_args = argparse.Namespace(verbose=args.verbose, abi=args.abi, sdk=args.sdk)
     build_apk(apk_args)
     console.ok(f"build all done ({time.monotonic() - start:.2f}s)")
     list_output_files(console, project_root)
@@ -545,18 +597,21 @@ def build_parser() -> argparse.ArgumentParser:
     zygisk.add_argument("-v", "--verbose", action="store_true", help="Show verbose logs")
     zygisk.add_argument("--abi", choices=SUPPORTED_ABIS, help="Build only the specified ABI")
     zygisk.add_argument("--ndk", help="NDK path")
+    zygisk.add_argument("--sdk", help="Android SDK path")
     zygisk.add_argument("--debug", action="store_true", help="Keep symbols, disable LTO and skip strip")
     zygisk.set_defaults(func=build_zygisk)
 
     apk = sub.add_parser("build-apk")
     apk.add_argument("-v", "--verbose", action="store_true", help="Show verbose logs")
     apk.add_argument("--abi", choices=SUPPORTED_ABIS, help="Target ABI")
+    apk.add_argument("--sdk", help="Android SDK path")
     apk.set_defaults(func=build_apk)
 
     all_cmd = sub.add_parser("build-all")
     all_cmd.add_argument("-v", "--verbose", action="store_true", help="Show verbose logs")
     all_cmd.add_argument("--abi", choices=SUPPORTED_ABIS, help="Target ABI")
     all_cmd.add_argument("--ndk", help="NDK path")
+    all_cmd.add_argument("--sdk", help="Android SDK path")
     all_cmd.add_argument("--debug", action="store_true", help="Build the zygisk module with debug symbols")
     all_cmd.set_defaults(func=build_all)
     return parser
