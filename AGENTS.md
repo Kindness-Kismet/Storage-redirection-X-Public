@@ -108,7 +108,7 @@ cargo clippy --manifest-path srx_core/Cargo.toml --target aarch64-linux-android 
 
 - 本地模块与 AVD 验证优先 `--debug`，保留符号并关闭 LTO、跳过 strip；`build-apk` 产出 release 包，本地应用调试使用 `assembleDebug`。
 - 修改后必须保证可编译且无 warning；改动 `srx_core/` 必跑 clippy，改动 `android/` 必跑 `lintDebug`。执行结果与源码检查必须区分，不把未执行的验证写成通过。
-- **默认不写测试**：除非用户明确要求，不新建测试文件、不添加测试依赖，也不把验收脚本放进产品源码。
+- **默认不新增测试**，仅在用户明确要求时编写。
 - 不写测试不等于跳过验证；按改动范围使用现有构建、静态检查和调试工具，必要时执行已有测试或实机检查。
 - 修改构建白名单时核对整个索引，确保源码、资源、Java Hook 输入、原生依赖和 Gradle wrapper 均可跟踪；编译成功不代表缺失 DEX 时的 Java Hook 可用。
 

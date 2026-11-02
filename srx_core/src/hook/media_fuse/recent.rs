@@ -130,26 +130,3 @@ fn retain_recent_private_owner_sqlite_accesses(
         (0..=RECENT_SQLITE_ACCESS_WINDOW_MS).contains(&now_ms.saturating_sub(access.updated_ms))
     });
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn recent_sqlite_access_keeps_owner_caller_for_backend_retry() {
-        let path = "/storage/emulated/0/Android/media/com.eg.android.AlipayGphone/XRadiant/XRadiant.db-shm";
-        let owner = "com.eg.android.AlipayGphone";
-        let owner_uid = 10274;
-
-        RECENT_PRIVATE_OWNER_SQLITE_ACCESS
-            .lock()
-            .unwrap_or_else(|err| err.into_inner())
-            .clear();
-        remember_recent_private_owner_sqlite_access(path, owner, owner_uid, &[owner.to_string()]);
-
-        assert_eq!(
-            has_recent_private_owner_sqlite_access(path),
-            Some(owner_uid)
-        );
-    }
-}

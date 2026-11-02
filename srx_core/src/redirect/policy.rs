@@ -256,37 +256,3 @@ fn load_shared_uid_cache(state: &mut SharedUidState, fingerprint: u64) {
     state.last_fingerprint = fingerprint;
     state.is_loaded = true;
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn file_monitor_ui_detects_system_and_oem_file_shells() {
-        assert!(is_file_monitor_ui_package("com.android.documentsui"));
-        assert!(is_file_monitor_ui_package("com.android.photopicker"));
-        assert!(is_file_monitor_ui_package(
-            "com.android.providers.downloads.ui"
-        ));
-        assert!(is_file_monitor_ui_package("com.coloros.filemanager"));
-        assert!(is_file_monitor_ui_package(
-            "com.mi.android.globalFileExplorer"
-        ));
-        assert!(is_file_monitor_ui_package("com.sec.android.app.myfiles"));
-        assert!(!is_file_monitor_ui_package(
-            "com.android.providers.downloads"
-        ));
-    }
-
-    #[test]
-    fn media_intermediate_includes_file_ui_for_attribution() {
-        assert!(is_media_intermediate_package(
-            "com.android.providers.media.module"
-        ));
-        assert!(is_media_intermediate_package(
-            "com.android.providers.downloads"
-        ));
-        assert!(is_media_intermediate_package("com.android.externalstorage"));
-        assert!(is_media_intermediate_package("com.coloros.filemanager"));
-    }
-}

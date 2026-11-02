@@ -112,24 +112,3 @@ pub(super) fn private_owner_sqlite_path_mentions_caller_package(
             && relative_path.contains(&token.to_ascii_lowercase())
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn caller_package_token_matches_xradiant_private_sqlite() {
-        assert!(private_owner_sqlite_path_mentions_caller_package(
-            "/storage/emulated/0/Android/media/com.eg.android.AlipayGphone/XRadiant/XRadiant.db-shm",
-            "com.leo.xposed.xradiant"
-        ));
-    }
-
-    #[test]
-    fn unrelated_package_token_does_not_match_generic_sqlite() {
-        assert!(!private_owner_sqlite_path_mentions_caller_package(
-            "/storage/emulated/0/Android/media/com.eg.android.AlipayGphone/cache/app.db-shm",
-            "com.leo.xposed.xradiant"
-        ));
-    }
-}

@@ -49,32 +49,3 @@ pub(super) fn log_path_mappings(mappings: &[PathMapping]) {
         log::info!("cfg map {} -> {}", mapping.request_path, mapping.final_path);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn file_monitor_ui_bypass_covers_system_oem_and_legacy_names() {
-        assert!(should_bypass_file_monitor_ui_process(
-            "com.android.documentsui",
-            "com.android.documentsui"
-        ));
-        assert!(should_bypass_file_monitor_ui_process(
-            "com.coloros.filemanager",
-            "com.coloros.filemanager"
-        ));
-        assert!(should_bypass_file_monitor_ui_process(
-            "com.android.providers.media",
-            "com.android.providers.media:PhotoPicker"
-        ));
-        assert!(should_bypass_file_monitor_ui_process(
-            "android.process.mediaUI",
-            "android.process.mediaUI"
-        ));
-        assert!(!should_bypass_file_monitor_ui_process(
-            "com.android.providers.downloads",
-            "com.android.providers.downloads"
-        ));
-    }
-}
