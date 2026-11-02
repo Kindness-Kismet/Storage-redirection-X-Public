@@ -1,25 +1,15 @@
-- Strengthen storage isolation against apps that detect and bypass redirection
-- Apply Fuse Fixer globally and reduce unnecessary logs during screen recording
-- Fix redirected image and video thumbnails showing content from original storage
-- Update redirection counts promptly and preserve them across reboots and log clearing
-- Stop affected apps after saving redirection settings so new rules apply on their next launch
-- Add log clearing and display the newest module logs first
-- Fix blur seams, bottom bar dimming and delayed content during page transitions
-- Reduce installation package size with architecture-specific builds
-- Fix boot protection falsely disabling the module and repeatedly disabling it across reboots
-
-Thanks to [@People-11](https://github.com/People-11) for the improvements contributed in [#66](https://github.com/Kindness-Kismet/Storage-redirection-X-Public/pull/66)!
+- Fix long delays when opening the system file picker with the module enabled
+- Speed up log clearing and report failures accurately
+- Avoid stopping apps again after redirection settings have already been applied
+- Adjust back button spacing and clarify log labels
+- Simplify the time display in file monitor entries
+- Update the Hook engine and dependencies, and fix native runtime compatibility
 
 ---
 
-- 增强存储隔离，防止应用通过检测重定向来绕过规则
-- 让 Fuse Fixer 全局生效，减少录屏时的无关日志
-- 修复重定向后的图片和视频缩略图显示真实存储内容的问题
-- 及时更新重定向生效次数，重启或清除日志后保留统计
-- 保存重定向配置后自动停止受影响的应用，下次启动时使用新规则
-- 新增日志清除功能，模块日志按最新在前排列
-- 修复模糊效果断层、底栏遮罩和页面切换时内容延迟出现的问题
-- 按设备架构打包，缩小安装包体积
-- 修复开机保护误停用模块及反复停用的问题
-
-感谢 [@People-11](https://github.com/People-11) 通过 [#66](https://github.com/Kindness-Kismet/Storage-redirection-X-Public/pull/66) 贡献的多项改进！
+- 修复启用模块后系统文件选择器打开缓慢的问题
+- 加快日志清空速度，准确提示清空失败
+- 避免重定向配置生效后，应用被延迟重复停止
+- 调整返回按钮间距和日志页面文案
+- 简化文件监视记录的时间显示
+- 更新 Hook 引擎及依赖，修复原生运行库兼容问题
