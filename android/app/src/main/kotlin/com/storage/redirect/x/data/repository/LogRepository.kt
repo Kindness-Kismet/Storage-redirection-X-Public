@@ -19,11 +19,12 @@ class LogRepository {
 
     suspend fun clear(): Boolean {
         if (!RootService.isRootAvailable()) return false
-        RootService.runCommand(
+        return RootService.runCommand(
             "for binary in ${Paths.MODULE_DIR}/bin/*/srx_logd; do " +
-                "[ -x \"\$binary\" ] || continue; \"\$binary\" control clear-running; break; done ; : > ${Paths.RUNNING_LOG} 2>/dev/null"
-        )
-        return true
+                "[ -x \"\$binary\" ] || continue; " +
+                "\"\$binary\" control clear-running || exit \$?; " +
+                ": > ${Paths.RUNNING_LOG}; exit \$?; done; exit 1"
+        ).isSuccess
     }
 
     // 检查日志文件是否发生变化（用于自动刷新）

@@ -117,7 +117,7 @@ fn run_control(command: Option<String>) -> io::Result<()> {
         return monitor_query::clear(Path::new("/data/adb/modules/storage.redirect.x"));
     }
     if command == CONTROL_CLEAR_ALL {
-        let _ = monitor_query::clear(Path::new("/data/adb/modules/storage.redirect.x"));
+        monitor_query::clear(Path::new("/data/adb/modules/storage.redirect.x"))?;
     }
     let Some(socket) = ClientSocket::new() else {
         return Err(io::Error::last_os_error());

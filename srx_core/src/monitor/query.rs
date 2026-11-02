@@ -83,10 +83,10 @@ struct Connection<'a> {
     db: *mut Db,
 }
 impl<'a> Connection<'a> {
-    fn open(api: &'a Api, path: &Path) -> io::Result<Self> {
+    fn open(api: &'a Api, path: &Path, flags: i32) -> io::Result<Self> {
         let path = CString::new(path.as_os_str().as_encoded_bytes())?;
         let mut db = ptr::null_mut();
-        let code = unsafe { (api.open)(path.as_ptr(), &mut db, 1, ptr::null()) };
+        let code = unsafe { (api.open)(path.as_ptr(), &mut db, flags, ptr::null()) };
         if code != 0 {
             if !db.is_null() {
                 unsafe {
@@ -162,7 +162,7 @@ impl Drop for Prepared<'_> {
 
 pub fn rows(path: &Path, before: i64, after: i64, limit: usize) -> io::Result<Vec<Value>> {
     let api = Api::load()?;
-    let connection = Connection::open(&api, path)?;
+    let connection = Connection::open(&api, path, 1)?;
     let stmt=connection.statement(c"SELECT id,timestamp,uid,pid,writer,package,path,func,status,flags FROM records WHERE (?1=0 OR id<?1) AND id>?2 AND uid>=0 AND uid<100000 AND uid!=1000 AND (path='/storage/emulated/0' OR path LIKE '/storage/emulated/0/%') ORDER BY id DESC LIMIT ?3")?;
     stmt.bind(1, before)?;
     stmt.bind(2, after)?;
@@ -239,23 +239,10 @@ pub fn clear(module_dir: &Path) -> io::Result<()> {
         return Ok(());
     }
     let api = Api::load()?;
-    let c_path = CString::new(file.as_os_str().as_encoded_bytes())?;
-    let mut db = ptr::null_mut();
-    let code = unsafe { (api.open)(c_path.as_ptr(), &mut db, 2, ptr::null()) };
-    if code != 0 {
-        if !db.is_null() {
-            unsafe {
-                (api.close)(db);
-            }
-        }
-        return Err(io::Error::other(format!(
-            "open monitor database: SQLite {code}"
-        )));
-    }
-    let connection = Connection { api: &api, db };
+    let connection = Connection::open(&api, &file, 2)?;
     let statement = connection.statement(c"DELETE FROM records")?;
-    unsafe {
-        (api.step)(statement.stmt);
+    if unsafe { (api.step)(statement.stmt) } != 101 {
+        return Err(connection.error());
     }
     Ok(())
 }
