@@ -344,7 +344,7 @@ public final class MonitorServer extends Binder {
             cause = cause.getCause();
           String failure = cause.toString();
           if (!failure.equals(failureByAuthority.put(authority, failure)))
-            error("waiting for provider monitor bridge: " + authority, cause);
+            info("waiting for provider monitor bridge: " + authority + " (" + failure + ")");
         }
       }
       bridge.postDelayed(this, 5000);

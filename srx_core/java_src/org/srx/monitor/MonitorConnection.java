@@ -21,9 +21,13 @@ public final class MonitorConnection implements AutoCloseable {
     IBinder activity = (IBinder) Class.forName("android.os.ServiceManager")
                            .getMethod("waitForService", String.class)
                            .invoke(null, "activity");
+    if (activity == null)
+      throw new IllegalStateException("activity service is unavailable");
     activityManager = Class.forName("android.app.IActivityManager$Stub")
                           .getMethod("asInterface", IBinder.class)
                           .invoke(null, activity);
+    if (activityManager == null)
+      throw new IllegalStateException("activity manager is unavailable");
     Method acquire = Class.forName("android.app.IActivityManager")
                          .getMethod("getContentProviderExternal", String.class, int.class,
                              IBinder.class, String.class);

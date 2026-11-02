@@ -21,6 +21,7 @@ const RECV_BUFFER_SIZE: usize = 8192;
 const TAG_STATS: &str = "Stats";
 const TAG_CONTROL: &str = "Control";
 const CONTROL_CLEAR_ALL: &str = "clear-all";
+const CONTROL_CLEAR_RUNNING: &str = "clear-running";
 const CONTROL_FLUSH_ALL: &str = "flush-all";
 
 fn main() {
@@ -112,8 +113,11 @@ fn run_control(command: Option<String>) -> io::Result<()> {
     if command == "monitor-policy" {
         return run_monitor_command("policy");
     }
-    if command == "clear-monitor" || command == CONTROL_CLEAR_ALL {
-        run_monitor_command("clear")?;
+    if command == "clear-monitor" {
+        return monitor_query::clear(Path::new("/data/adb/modules/storage.redirect.x"));
+    }
+    if command == CONTROL_CLEAR_ALL {
+        let _ = monitor_query::clear(Path::new("/data/adb/modules/storage.redirect.x"));
     }
     let Some(socket) = ClientSocket::new() else {
         return Err(io::Error::last_os_error());
@@ -166,7 +170,7 @@ impl LogState {
 
     fn handle_control(&mut self, message: &str) {
         match message {
-            CONTROL_CLEAR_ALL => self.clear_all(),
+            CONTROL_CLEAR_ALL | CONTROL_CLEAR_RUNNING => self.clear_all(),
             CONTROL_FLUSH_ALL => self.flush_all(),
             _ => {}
         }
