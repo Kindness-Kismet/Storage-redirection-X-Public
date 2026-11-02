@@ -24,6 +24,7 @@ Android Zygisk 模块 + Kotlin Compose 管理应用，用于存储重定向。
 - [手动配置](#手动配置)
 - [配置样板](#配置样板)
 - [构建命令](#构建命令)
+- [支持项目](#支持项目)
 
 ## 前置条件
 
@@ -324,3 +325,7 @@ PYTHONUTF8=1 python scripts/build.py build-all --debug
 - CMake 3.28+
 - Ninja
 - Rust 工具链版本 `>= 1.93.1`，并安装 Android 目标
+
+## 支持项目
+
+如果你喜欢我的工作，欢迎通过[爱发电](https://afdian.com/a/KiritoXD)支持项目维护，让开发能长久继续。谢谢你们！

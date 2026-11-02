@@ -253,6 +253,9 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           RELEASE_NAME: Storage Redirection X ${{ needs.prepare.outputs.version }}
           CHANGELOG_BASE64: ${{ needs.prepare.outputs.changelog_base64 }}
+          RELEASE_DONATION_NOTICE: |-
+            出于维护考虑，如果你喜欢我的工作，还请考虑捐赠我，因为用爱开发始终是不长久的，谢谢你们
+            [爱发电](https://afdian.com/a/KiritoXD)
         run: |
           set -euo pipefail
 
@@ -269,7 +272,10 @@ jobs:
           fi
 
           release_notes_file="$(mktemp)"
-          cat "${changelog_file}" > "${release_notes_file}"
+          {
+            printf '%s\n\n' "${RELEASE_DONATION_NOTICE}"
+            cat "${changelog_file}"
+          } > "${release_notes_file}"
 
           echo "========== 发布说明 =========="
           cat "${release_notes_file}"

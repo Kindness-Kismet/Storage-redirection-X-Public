@@ -24,6 +24,7 @@ Android Zygisk module + Kotlin Compose manager app for storage redirection.
 - [Manual Configuration](#manual-configuration)
 - [Configuration Starter Samples](#configuration-starter-samples)
 - [Build](#build)
+- [Support](#support)
 
 ## Prerequisites
 
@@ -320,7 +321,11 @@ Useful options:
 - Python 3.10+
 - JDK with `javac` available
 - Android SDK with build-tools (`d8`) and platform `android-37`
-- Android NDK `30.0.16248370`，与 LSPlant 使用的 libcxx 版本一致
+- Android NDK `30.0.16248370`, matching the libcxx version used by LSPlant
 - CMake 3.28+
 - Ninja
 - Rust toolchain (`>= 1.93.1`) with Android targets installed
+
+## Support
+
+If you like my work, please consider supporting ongoing maintenance through [Afdian](https://afdian.com/a/KiritoXD). Your support helps keep the project sustainable. Thank you!
