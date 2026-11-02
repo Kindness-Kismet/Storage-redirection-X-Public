@@ -16,7 +16,7 @@ mod util;
 
 use std::ffi::{CStr, c_char};
 
-pub(crate) use jni_query::rewrite_cursor_storage_path_for_caller;
+pub(crate) use jni_query::{rewrite_cursor_storage_path_for_caller, should_filter_caller};
 pub use stats::InterceptHub;
 
 pub fn install_fuse_fixer_hook() {

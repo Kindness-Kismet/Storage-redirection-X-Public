@@ -11,6 +11,33 @@ static EMPTY_TARGET_FILTER_LOG_COUNT: AtomicU32 = AtomicU32::new(0);
 static MISSING_TARGET_FILTER_LOG_COUNT: AtomicU32 = AtomicU32::new(0);
 static REWRITE_ROW_LOG_COUNT: AtomicU32 = AtomicU32::new(0);
 
+// 判断调用方是否需要过滤/改写查询结果
+pub(crate) fn should_filter_caller(caller_uid: i32) -> bool {
+    if caller_uid < 10000 {
+        return false;
+    }
+    let mut packages = policy::get_packages_for_uid(caller_uid);
+    if packages.is_empty() {
+        policy::refresh_shared_uid_cache();
+        packages = policy::get_packages_for_uid(caller_uid);
+    }
+    if packages.is_empty() {
+        return false;
+    }
+    let hub = SettingsHub::instance();
+    for package in packages {
+        if policy::is_media_intermediate_package(&package)
+            || policy::is_system_writer_package(&package)
+        {
+            return false;
+        }
+        if hub.should_redirect(&package, caller_uid) {
+            return true;
+        }
+    }
+    false
+}
+
 // 路径命中重定向且目标不存在时返回空字符串，避免展示无效媒体行
 pub(crate) fn rewrite_cursor_storage_path_for_caller(
     original_text: &str,

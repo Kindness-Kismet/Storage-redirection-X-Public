@@ -1,7 +1,9 @@
 // Hooker 类全局引用 + LSPlant native trampoline 绑定
 
 use super::lsplant;
-use crate::hook::rewrite_cursor_storage_path_for_caller;
+use crate::hook::{
+    rewrite_cursor_storage_path_for_caller, should_filter_caller as should_filter_caller_impl,
+};
 use crate::zygisk::jni::{
     call_object_method_a, get_method_id, get_object_class, new_global_ref, new_jstring_utf8,
     register_natives,
@@ -21,6 +23,8 @@ const CALLBACK_NAME: &[u8] = b"onMediaProviderQuery\0";
 const CALLBACK_SIG: &[u8] = b"(Lorg/srx/hook/Hooker;[Ljava/lang/Object;)Ljava/lang/Object;\0";
 const FILTER_PATH_NAME: &[u8] = b"filterPath\0";
 const FILTER_PATH_SIG: &[u8] = b"(Ljava/lang/String;IZ)Ljava/lang/String;\0";
+const SHOULD_FILTER_CALLER_NAME: &[u8] = b"shouldFilterCaller\0";
+const SHOULD_FILTER_CALLER_SIG: &[u8] = b"(I)Z\0";
 
 unsafe extern "C" fn refresh_provider_libraries(_env: *mut JNIEnv, _class: jclass) {
     crate::hook::refresh_provider_libraries();
@@ -69,6 +73,11 @@ pub fn init(env: *mut JNIEnv, hooker_class: jclass) -> bool {
             signature: FILTER_PATH_SIG.as_ptr() as *mut _,
             fnPtr: filter_path as *mut _,
         },
+        JNINativeMethod {
+            name: SHOULD_FILTER_CALLER_NAME.as_ptr() as *mut _,
+            signature: SHOULD_FILTER_CALLER_SIG.as_ptr() as *mut _,
+            fnPtr: should_filter_caller as *mut _,
+        },
     ];
     if !register_natives(env, hooker_class, &methods) {
         log::warn!("java hook register natives failed");
@@ -115,6 +124,18 @@ unsafe extern "C" fn on_media_provider_query(
     args: jobjectArray,
 ) -> jobject {
     call_backup(env, hooker, args)
+}
+
+unsafe extern "C" fn should_filter_caller(
+    _env: *mut JNIEnv,
+    _class: jclass,
+    caller_uid: jni_sys::jint,
+) -> jni_sys::jboolean {
+    if should_filter_caller_impl(caller_uid) {
+        jni_sys::JNI_TRUE
+    } else {
+        jni_sys::JNI_FALSE
+    }
 }
 
 unsafe extern "C" fn filter_path(

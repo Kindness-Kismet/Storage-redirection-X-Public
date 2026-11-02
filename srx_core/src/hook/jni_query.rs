@@ -3,4 +3,4 @@
 mod rewrite;
 mod types;
 
-pub(crate) use rewrite::rewrite_cursor_storage_path_for_caller;
+pub(crate) use rewrite::{rewrite_cursor_storage_path_for_caller, should_filter_caller};

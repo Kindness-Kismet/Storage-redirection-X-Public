@@ -23,6 +23,7 @@ public class Hooker {
   private static boolean shouldInstallMonitorHooks;
   public static native void refreshProviderLibraries();
   public static native void captureFuseCaller(int uid);
+  public static native boolean shouldFilterCaller(int callerUid);
 
   public Method backup;
   private Member target;
@@ -31,10 +32,12 @@ public class Hooker {
   private native boolean doUnhook(Member target);
 
   public Object callback(Object[] args) throws Throwable {
+    int callerUid = android.os.Binder.getCallingUid();
+    if (!shouldFilterCaller(callerUid))
+      return callBackup(args);
     // 缩略图源查询先保留索引原路径，再按请求身份执行一次重定向。
     if (ThumbnailHooks.isResolvingThumbnailSource())
       return callBackup(args);
-    int callerUid = android.os.Binder.getCallingUid();
     Object[] actualArgs = unwrapArgs(args);
     logQueryArgs(this, actualArgs, callerUid);
     ProjectionPatch projectionPatch = ProjectionPatch.apply(args, actualArgs);

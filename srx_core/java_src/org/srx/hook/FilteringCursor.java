@@ -41,6 +41,8 @@ final class FilteringCursor extends AbstractCursor {
                      boolean preserveMissingTargets) {
     if (base == null || base.isClosed())
       return base;
+    if (!Hooker.shouldFilterCaller(callerUid))
+      return base;
     int pathColumn = findPathColumn(base);
     int relativePathColumn = findColumnIgnoreCase(base, "relative_path");
     int bucketIdColumn = findColumnIgnoreCase(base, "bucket_id");
