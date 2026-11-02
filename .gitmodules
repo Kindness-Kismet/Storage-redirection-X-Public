@@ -4,3 +4,6 @@
 [submodule "srx_core/third_party/lsplant"]
 	path = srx_core/third_party/lsplant
 	url = https://github.com/LSPosed/LSPlant.git
+[submodule "srx_core/third_party/srx_hook"]
+	path = srx_core/third_party/srx_hook
+	url = https://github.com/Kindness-Kismet/srx_hook.git

@@ -12,7 +12,7 @@ Storage Redirect X 由 Android 配置应用和 Rust Zygisk 模块组成，通过
 | `srx_core/src/` | Rust 核心与日志守护进程 |
 | `srx_core/java_src/` | Java Hook 源码，构建时生成内嵌 DEX |
 | `srx_core/native/` | LSPlant C++ 桥接与 CMake 入口 |
-| `srx_core/third_party/` | LSPlant 与内联 Hook 库 Git 子模块，保留上游依赖、许可证及独立提交历史 |
+| `srx_core/third_party/` | LSPlant、`srx_hook` 与 `srx_inline_hook` Git 子模块，保留上游依赖、许可证及独立提交历史 |
 | `assets/zygisk_module/` | 模块安装、启动、卸载脚本与 SELinux 规则 |
 | `scripts/build.py` | Android 构建与 Zygisk 构建、打包入口 |
 | `.github/` | CI、设备验证脚本与发布更新日志 |

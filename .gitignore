@@ -53,6 +53,7 @@
 
 # 独立维护的第三方库子模块。
 !/srx_core/third_party/
+!/srx_core/third_party/srx_hook
 !/srx_core/third_party/srx_inline_hook
 !/srx_core/third_party/lsplant
 
