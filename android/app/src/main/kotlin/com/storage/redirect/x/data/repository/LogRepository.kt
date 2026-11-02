@@ -21,9 +21,9 @@ class LogRepository {
         if (!RootService.isRootAvailable()) return false
         RootService.runCommand(
             "for binary in ${Paths.MODULE_DIR}/bin/*/srx_logd; do " +
-                "[ -x \"\$binary\" ] || continue; \"\$binary\" control clear-all; break; done"
+                "[ -x \"\$binary\" ] || continue; \"\$binary\" control clear-running; break; done ; : > ${Paths.RUNNING_LOG} 2>/dev/null"
         )
-        return RootService.runCommand("echo \"\" > ${Paths.RUNNING_LOG}").isSuccess
+        return true
     }
 
     // 检查日志文件是否发生变化（用于自动刷新）
