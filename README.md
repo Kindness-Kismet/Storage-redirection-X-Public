@@ -320,7 +320,7 @@ Useful options:
 
 - Python 3.10+
 - JDK with `javac` available
-- Android SDK with build-tools (`d8`) and platform `android-37`
+- Android SDK with build-tools (`d8`) and platform `android-37.0`
 - Android NDK `30.0.16248370`, matching the libcxx version used by LSPlant
 - CMake 3.28+
 - Ninja

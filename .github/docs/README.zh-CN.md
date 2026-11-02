@@ -320,7 +320,7 @@ PYTHONUTF8=1 python scripts/build.py build-all --debug
 
 - Python 3.10+
 - 可用的 JDK 和 `javac`
-- Android SDK，包含 build-tools 里的 `d8` 和 `android-37` 平台
+- Android SDK，包含 build-tools 里的 `d8` 和 `android-37.0` 平台
 - Android NDK `30.0.16248370`，与 LSPlant 使用的 libcxx 版本一致
 - CMake 3.28+
 - Ninja

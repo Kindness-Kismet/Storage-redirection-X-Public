@@ -80,7 +80,7 @@ jobs:
           (yes | sdkmanager --licenses > /dev/null) || true
           ndk_version="30.0.16248370"
           latest_cmake_pkg=$(sdkmanager --list | tr -d "\r" | grep -oE "cmake;[0-9][0-9.]+" | sort -Vu | tail -n 1)
-          sdkmanager "platforms;android-37" "build-tools;36.0.0" "ndk;${ndk_version}" "${latest_cmake_pkg}"
+          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "ndk;${ndk_version}" "${latest_cmake_pkg}"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${ndk_version}" >> "${GITHUB_ENV}"
           cmake_version="${latest_cmake_pkg#cmake;}"
           echo "${ANDROID_SDK_ROOT}/cmake/${cmake_version}/bin" >> "${GITHUB_PATH}"
