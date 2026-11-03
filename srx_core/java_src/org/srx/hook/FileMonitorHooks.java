@@ -314,20 +314,93 @@ public final class FileMonitorHooks extends Hooker {
       values.put("_data", target);
   }
 
+  // 按 ContentValues 推算请求写入的位置；未指定位置或位于其他卷时返回 null，交给插入后的兜底判定
+  private static String requestedPath(ContentValues values, Uri uri, int uid) {
+    String data = values.getAsString("_data");
+    if (data != null)
+      return data;
+    String relative = values.getAsString("relative_path");
+    if (relative == null || !isPrimaryVolume(uri))
+      return null;
+    String name = values.getAsString("_display_name");
+    String dir = "/storage/emulated/" + uid / 100000 + "/"
+        + (relative.endsWith("/") ? relative : relative + "/");
+    return name == null ? dir : dir + name;
+  }
+
+  private static boolean isPrimaryVolume(Uri uri) {
+    java.util.List<String> segments = uri.getPathSegments();
+    return !segments.isEmpty()
+        && (segments.get(0).equals("external") || segments.get(0).equals("external_primary"));
+  }
+
+  private boolean isReadOnly(String path, int uid) {
+    if (!Hooker.isReadOnlyPath(path, uid))
+      return false;
+    emit(uid, path, kind, 30);
+    return true;
+  }
+
+  // 插入后按实际落盘路径兜底，覆盖由 MediaProvider 选定默认目录的插入
+  private boolean discardReadOnlyInsert(Uri inserted, int uid) {
+    for (String path : paths(inserted, null)) {
+      if (!isReadOnly(path, uid))
+        continue;
+      provider.delete(inserted, null, null);
+      return true;
+    }
+    return false;
+  }
+
+  // 改名或移动会改写只读目录中的文件，或把文件放进只读目录
+  private boolean isReadOnlyMove(Object[] args, int uid) {
+    ContentValues values = (ContentValues) args[2];
+    if (values == null
+        || !(values.containsKey("_data") || values.containsKey("relative_path")
+            || values.containsKey("_display_name")))
+      return false;
+    ArrayList<String> touched = paths((Uri) args[1], args);
+    String destination = requestedPath(values, (Uri) args[1], uid);
+    if (destination != null)
+      touched.add(destination);
+    for (String path : touched) {
+      if (isReadOnly(path, uid))
+        return true;
+    }
+    return false;
+  }
+
   private Object providerOperation(Object[] args) throws Throwable {
     int uid = Binder.getCallingUid();
-    if (kind.startsWith("media_") && uid != android.os.Process.myUid())
+    boolean isForeignMedia = kind.startsWith("media_") && uid != android.os.Process.myUid();
+    if (isForeignMedia)
       redirectDataPath((ContentValues) args[2], uid);
-    if (uid == android.os.Process.myUid() || !isEnabled || INSIDE_PROVIDER.get())
+    if (uid == android.os.Process.myUid() || INSIDE_PROVIDER.get())
+      return callBackup(args);
+    // 能推算位置的插入必须在执行前拒绝，MediaProvider 插入时会先逐级创建父目录
+    boolean isForeignInsert = isForeignMedia && kind.equals("media_insert");
+    String requestedLocation = isForeignInsert && args[2] != null
+        ? requestedPath((ContentValues) args[2], (Uri) args[1], uid)
+        : null;
+    if (requestedLocation != null && isReadOnly(requestedLocation, uid))
+      return null;
+    if (isForeignMedia && kind.equals("media_update") && isReadOnlyMove(args, uid))
+      return 0;
+    if (!isEnabled && !isForeignMedia)
       return callBackup(args);
     INSIDE_PROVIDER.set(true);
     try {
       Uri uri = (Uri) args[1];
       ContentValues values = (ContentValues) args[2];
       ArrayList<String> before = new ArrayList<>();
-      if (kind.endsWith("update"))
+      if (isEnabled && kind.endsWith("update"))
         before = paths(uri, args);
       Object result = callBackup(args);
+      if (isForeignInsert && requestedLocation == null && result instanceof Uri
+          && discardReadOnlyInsert((Uri) result, uid))
+        return null;
+      if (!isEnabled)
+        return result;
       try {
         if (kind.endsWith("insert") && result instanceof Uri) {
           ArrayList<String> inserted = paths((Uri) result, null);
@@ -391,7 +464,7 @@ public final class FileMonitorHooks extends Hooker {
     String path = MonitorProtocol.storagePath(input);
     if (path == null) return;
     int flags = status == 0 ? MonitorProtocol.SUCCESS : MonitorProtocol.FAILED;
-    if (Math.abs(status) == 13 || Math.abs(status) == 1)
+    if (Math.abs(status) == 13 || Math.abs(status) == 1 || Math.abs(status) == 30)
       flags |= MonitorProtocol.BLOCKED;
     if (status == 17 || status == -17)
       flags = MonitorProtocol.EXISTS;

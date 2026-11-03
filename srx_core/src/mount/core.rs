@@ -1,8 +1,8 @@
 use super::MountPlanner;
 use crate::platform::{fs, paths};
 use libc::{
-    CLONE_NEWNS, MS_BIND, MS_PRIVATE, MS_REC, chmod, chown, mount, readlink, stat as c_stat,
-    unshare,
+    CLONE_NEWNS, MS_BIND, MS_PRIVATE, MS_RDONLY, MS_REC, MS_REMOUNT, chmod, chown, mount, readlink,
+    stat as c_stat, unshare,
 };
 use std::ffi::{CStr, CString};
 use std::fs as std_fs;
@@ -271,6 +271,49 @@ impl MountPlanner {
                 source,
                 target
             );
+        }
+        true
+    }
+
+    // bind 重挂会整体替换挂载标志，需带上现有的 nosuid/nodev 等标志避免被清除
+    pub(super) fn remount_readonly(&self, target: &str) -> bool {
+        let Ok(c_target) = CString::new(target) else {
+            return false;
+        };
+        let mut st = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+        if unsafe { libc::statvfs(c_target.as_ptr(), st.as_mut_ptr()) } != 0 {
+            log::warn!(
+                "readonly statvfs failed target={} errno={}",
+                target,
+                last_errno()
+            );
+            return false;
+        }
+        let preserved_flags = unsafe { st.assume_init() }.f_flag
+            & (libc::ST_NOSUID
+                | libc::ST_NODEV
+                | libc::ST_NOEXEC
+                | libc::ST_NOATIME
+                | libc::ST_NODIRATIME
+                | libc::ST_RELATIME);
+        let flags = (MS_REMOUNT | MS_BIND | MS_RDONLY) as libc::c_ulong | preserved_flags;
+        let ret = unsafe {
+            mount(
+                std::ptr::null(),
+                c_target.as_ptr(),
+                std::ptr::null(),
+                flags,
+                std::ptr::null(),
+            )
+        };
+        if ret != 0 {
+            log::warn!(
+                "readonly remount failed target={} errno={} {}",
+                target,
+                last_errno(),
+                errno_text()
+            );
+            return false;
         }
         true
     }

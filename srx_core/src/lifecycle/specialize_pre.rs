@@ -325,14 +325,16 @@ impl RuntimeFlow {
 
         let allowed_real_paths = config.get_allowed_real_paths(&self.package_name, self.app_uid);
         let excluded_real_paths = config.get_excluded_real_paths(&self.package_name, self.app_uid);
+        let readonly_real_paths = config.get_readonly_real_paths(&self.package_name, self.app_uid);
         let mut path_mappings = config.get_path_mappings(&self.package_name, self.app_uid);
         let mut is_mapping_mode_only = false;
 
         log::info!(
-            "config sum pkg={} allow={} excl={} map={}",
+            "config sum pkg={} allow={} excl={} ro={} map={}",
             self.package_name,
             allowed_real_paths.len(),
             excluded_real_paths.len(),
+            readonly_real_paths.len(),
             path_mappings.len()
         );
 
@@ -429,6 +431,7 @@ impl RuntimeFlow {
             &redirect_base,
             &allowed_real_paths,
             &excluded_real_paths,
+            &readonly_real_paths,
             &path_mappings,
             is_mapping_mode_only,
         );

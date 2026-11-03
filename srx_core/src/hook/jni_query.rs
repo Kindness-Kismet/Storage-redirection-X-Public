@@ -4,5 +4,6 @@ mod rewrite;
 mod types;
 
 pub(crate) use rewrite::{
-    resolve_redirect_target_for_caller, rewrite_cursor_storage_path_for_caller,
+    is_readonly_path_for_caller, resolve_redirect_target_for_caller,
+    rewrite_cursor_storage_path_for_caller,
 };

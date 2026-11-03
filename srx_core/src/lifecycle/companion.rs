@@ -105,6 +105,9 @@ fn log_mount_request(request: &CompanionMountRequest) {
             log::info!("req allow={}", path);
         }
     }
+    for path in &request.readonly_real_paths {
+        log::info!("req readonly={}", path);
+    }
     if !request.path_mappings.is_empty() {
         for mapping in &request.path_mappings {
             log::info!("req map {} -> {}", mapping.request_path, mapping.final_path);

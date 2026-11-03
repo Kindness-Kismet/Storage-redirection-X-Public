@@ -16,7 +16,8 @@ mod util;
 use std::ffi::{CStr, c_char};
 
 pub(crate) use jni_query::{
-    resolve_redirect_target_for_caller, rewrite_cursor_storage_path_for_caller,
+    is_readonly_path_for_caller, resolve_redirect_target_for_caller,
+    rewrite_cursor_storage_path_for_caller,
 };
 pub use stats::InterceptHub;
 
