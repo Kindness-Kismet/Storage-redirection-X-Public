@@ -12,6 +12,8 @@ const STORAGE_PREFIX: &str = "/storage/emulated/";
 pub enum CallerRealPathMatch {
     None,
     Excluded,
+    // 只读目录：代写的写入落沙盒，读取仍走真实路径
+    ReadOnly,
     Allowed,
 }
 
@@ -84,6 +86,9 @@ pub fn classify_path_by_caller_real_paths(
 
         if matches_any_real_path(&cache.excluded_real_paths, resolved_path) {
             return CallerRealPathMatch::Excluded;
+        }
+        if matches_any_real_path(&cache.readonly_real_paths, resolved_path) {
+            return CallerRealPathMatch::ReadOnly;
         }
         if matches_any_real_path(&cache.allowed_real_paths, resolved_path) {
             return CallerRealPathMatch::Allowed;
@@ -407,6 +412,7 @@ fn refresh_caller_real_paths_cache(
     cache.is_loaded = true;
     cache.allowed_real_paths.clear();
     cache.excluded_real_paths.clear();
+    cache.readonly_real_paths.clear();
 
     if caller_package.is_empty() || caller_uid < ANDROID_APP_UID_START {
         return;
@@ -415,6 +421,7 @@ fn refresh_caller_real_paths_cache(
     let config = SettingsHub::instance();
     cache.allowed_real_paths = config.get_allowed_real_paths(caller_package, caller_uid);
     cache.excluded_real_paths = config.get_excluded_real_paths(caller_package, caller_uid);
+    cache.readonly_real_paths = config.get_readonly_real_paths(caller_package, caller_uid);
 }
 
 // 热路径仅保留稀疏样本，避免系统代写查询刷满 running.log
@@ -442,6 +449,7 @@ struct CallerAllowedCache {
     is_loaded: bool,
     allowed_real_paths: Vec<String>,
     excluded_real_paths: Vec<String>,
+    readonly_real_paths: Vec<String>,
 }
 
 thread_local! {
@@ -463,6 +471,7 @@ thread_local! {
         is_loaded: false,
         allowed_real_paths: Vec::new(),
         excluded_real_paths: Vec::new(),
+        readonly_real_paths: Vec::new(),
     }) };
 }
 

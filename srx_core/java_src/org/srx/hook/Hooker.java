@@ -324,7 +324,7 @@ public class Hooker {
                                   boolean preserveMissingTarget);
   // 按调用方返回实际落盘路径；callerUid 为 -1 时按映射路径反推应用，未命中返回 null
   static native String resolveRedirectPath(String path, int callerUid);
-  // 路径落在调用方的只读规则内且未被映射或排除改走其他位置时返回 true
+  // 路径为调用方只读规则内真实存在的文件且未被映射改走时返回 true
   static native boolean isReadOnlyPath(String path, int callerUid);
 
   static void logCursor(String stage, Cursor cursor, int pathColumn,

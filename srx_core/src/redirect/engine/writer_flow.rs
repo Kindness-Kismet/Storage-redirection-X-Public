@@ -346,9 +346,16 @@ impl<'a> WriterFlow<'a> {
             &self.effective_caller_package,
             self.effective_caller_uid,
         ) {
-            writer::CallerRealPathMatch::Excluded => {
+            // 两者的写入都交给后续沙盒回退；代写读取不走重定向，查询改写另行保留只读目录的真实条目
+            rule @ (writer::CallerRealPathMatch::Excluded
+            | writer::CallerRealPathMatch::ReadOnly) => {
                 log::debug!(
-                    "writer: excl hit caller={} uid={} path={}",
+                    "writer: {} hit caller={} uid={} path={}",
+                    if matches!(rule, writer::CallerRealPathMatch::Excluded) {
+                        "excl"
+                    } else {
+                        "ro"
+                    },
                     self.effective_caller_package,
                     self.effective_caller_uid,
                     self.resolved_path

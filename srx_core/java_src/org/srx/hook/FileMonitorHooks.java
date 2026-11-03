@@ -325,26 +325,7 @@ public final class FileMonitorHooks extends Hooker {
       values.put("_data", target);
   }
 
-  // 按 ContentValues 推算请求写入的位置；未指定位置或位于其他卷时返回 null，交给插入后的兜底判定
-  private static String requestedPath(ContentValues values, Uri uri, int uid) {
-    String data = values.getAsString("_data");
-    if (data != null)
-      return data;
-    String relative = values.getAsString("relative_path");
-    if (relative == null || !isPrimaryVolume(uri))
-      return null;
-    String name = values.getAsString("_display_name");
-    String dir = "/storage/emulated/" + uid / 100000 + "/"
-        + (relative.endsWith("/") ? relative : relative + "/");
-    return name == null ? dir : dir + name;
-  }
-
-  private static boolean isPrimaryVolume(Uri uri) {
-    java.util.List<String> segments = uri.getPathSegments();
-    return !segments.isEmpty()
-        && (segments.get(0).equals("external") || segments.get(0).equals("external_primary"));
-  }
-
+  // isReadOnlyPath 只对真实存在的只读文件返回 true，应用经代写落在沙盒的文件不受限制
   private boolean isReadOnly(String path, int uid) {
     if (!Hooker.isReadOnlyPath(path, uid))
       return false;
@@ -352,30 +333,14 @@ public final class FileMonitorHooks extends Hooker {
     return true;
   }
 
-  // 插入后按实际落盘路径兜底，覆盖由 MediaProvider 选定默认目录的插入
-  private boolean discardReadOnlyInsert(Uri inserted, int uid) {
-    for (String path : paths(inserted, null, 0)) {
-      if (!isReadOnly(path, uid))
-        continue;
-      provider.delete(inserted, null, null);
-      return true;
-    }
-    return false;
-  }
-
-  // 改名或移动会改写只读目录中的文件，或把文件放进只读目录
+  // 改名、移动或移入回收站（改名为 .trashed- 前缀）都会改写只读目录中的真实文件
   private boolean isReadOnlyMove(Object[] args, int uid) {
     ContentValues values = (ContentValues) args[2];
-    // 移入回收站会把文件改名为 .trashed- 前缀，同样属于改写
     if (values == null
         || !(values.containsKey("_data") || values.containsKey("relative_path")
             || values.containsKey("_display_name") || values.containsKey("is_trashed")))
       return false;
-    ArrayList<String> touched = paths((Uri) args[1], args, 3);
-    String destination = requestedPath(values, (Uri) args[1], uid);
-    if (destination != null)
-      touched.add(destination);
-    for (String path : touched) {
+    for (String path : paths((Uri) args[1], args, 3)) {
       if (isReadOnly(path, uid))
         return true;
     }
@@ -419,30 +384,19 @@ public final class FileMonitorHooks extends Hooker {
       redirectDataPath((ContentValues) args[2], uid);
     if (uid == android.os.Process.myUid() || INSIDE_PROVIDER.get())
       return callBackup(args);
-    // 能推算位置的插入必须在执行前拒绝，MediaProvider 插入时会先逐级创建父目录
-    boolean isForeignInsert = isForeignMedia && kind.equals("media_insert");
-    String requestedLocation = isForeignInsert && args[2] != null
-        ? requestedPath((ContentValues) args[2], (Uri) args[1], uid)
-        : null;
-    if (requestedLocation != null && isReadOnly(requestedLocation, uid))
-      return null;
+    // 插入只读目录无需拦截：代写的文件与父目录由原生 Hook 落到调用方沙盒
     if (isForeignMedia && kind.equals("media_update") && isReadOnlyMove(args, uid))
       return 0;
-    if (!isEnabled && !isForeignMedia)
+    if (!isEnabled)
       return callBackup(args);
     INSIDE_PROVIDER.set(true);
     try {
       Uri uri = (Uri) args[1];
       ContentValues values = (ContentValues) args[2];
       ArrayList<String> before = new ArrayList<>();
-      if (isEnabled && kind.endsWith("update"))
+      if (kind.endsWith("update"))
         before = paths(uri, args, 3);
       Object result = callBackup(args);
-      if (isForeignInsert && requestedLocation == null && result instanceof Uri
-          && discardReadOnlyInsert((Uri) result, uid))
-        return null;
-      if (!isEnabled)
-        return result;
       try {
         if (kind.endsWith("insert") && result instanceof Uri) {
           ArrayList<String> inserted = paths((Uri) result, null, 0);
