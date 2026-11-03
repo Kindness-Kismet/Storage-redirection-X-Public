@@ -2,6 +2,8 @@ package org.srx.hook;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.*;
@@ -115,6 +117,11 @@ public final class FileMonitorHooks extends Hooker {
         Class<?> daemon = Class.forName("com.android.providers.media.fuse.FuseDaemon", false,
             provider.getClass().getClassLoader());
         install(provider, daemon.getDeclaredMethod("run"), "fuse_ready");
+        // 扫描广播在新旧版本分别交给 MediaService 或 MediaServiceV2，接收器是两者共同入口
+        Class<?> receiver = Class.forName("com.android.providers.media.MediaReceiver", false,
+            provider.getClass().getClassLoader());
+        install(provider, receiver.getDeclaredMethod("onReceive", Context.class, Intent.class),
+            "scan_file");
       }
       Log.i(TAG,
           "provider observer installed: " + provider.getClass().getName()
@@ -179,6 +186,8 @@ public final class FileMonitorHooks extends Hooker {
       Hooker.refreshProviderLibraries();
       return callBackup(args);
     }
+    if (kind.equals("scan_file"))
+      return scanFile(args);
     if (kind.startsWith("media_") || kind.startsWith("download_"))
       return providerOperation(args);
     Object result;
@@ -265,8 +274,50 @@ public final class FileMonitorHooks extends Hooker {
     emit(uid, path, kind.equals("insertFileIfNecessaryForFuse") ? "creat" : "open", status);
   }
 
+  // 旧扫描广播携带应用视角的映射路径，原生扫描找不到文件；改为实际落盘路径并补录直接写入
+  private Object scanFile(Object[] args) throws Throwable {
+    Intent intent = (Intent) args[2];
+    Uri uri = intent.getData();
+    if (!Intent.ACTION_MEDIA_SCANNER_SCAN_FILE.equals(intent.getAction()) || uri == null
+        || !"file".equals(uri.getScheme()) || uri.getPath() == null
+        || new java.io.File(uri.getPath()).exists())
+      return callBackup(args);
+    String target = Hooker.resolveRedirectPath(uri.getPath(), -1);
+    if (target == null)
+      return callBackup(args);
+    try {
+      int ownerUid = android.system.Os.stat(target).st_uid;
+      intent.setData(Uri.fromFile(new java.io.File(target)));
+      if (isEnabled && !isIndexed(target))
+        emit(ownerUid, target, "creat", 0);
+    } catch (android.system.ErrnoException missing) {
+      // 映射目标也不存在时保持原广播，交给原生扫描清理
+    }
+    return callBackup(args);
+  }
+
+  // 先经 MediaStore 插入再发广播的写法已有插入事件，只为未登记的直接写入补录
+  private boolean isIndexed(String path) {
+    try (Cursor cursor = provider.query(android.provider.MediaStore.Files.getContentUri("external"),
+             new String[] {"_id"}, "_data=?", new String[] {path}, null)) {
+      return cursor != null && cursor.moveToFirst();
+    }
+  }
+
+  // 映射路径的索引行改指实际落盘路径，否则关闭后的扫描找不到文件而删除该行
+  private static void redirectDataPath(ContentValues values, int uid) {
+    String path = values == null ? null : values.getAsString("_data");
+    if (path == null)
+      return;
+    String target = Hooker.resolveRedirectPath(path, uid);
+    if (target != null)
+      values.put("_data", target);
+  }
+
   private Object providerOperation(Object[] args) throws Throwable {
     int uid = Binder.getCallingUid();
+    if (kind.startsWith("media_") && uid != android.os.Process.myUid())
+      redirectDataPath((ContentValues) args[2], uid);
     if (uid == android.os.Process.myUid() || !isEnabled || INSIDE_PROVIDER.get())
       return callBackup(args);
     INSIDE_PROVIDER.set(true);

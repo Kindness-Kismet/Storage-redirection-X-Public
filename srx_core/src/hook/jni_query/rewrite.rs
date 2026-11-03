@@ -1,6 +1,7 @@
 use super::super::stats::InterceptHub;
 use super::types::{FILE_SCHEME_PREFIX, STORAGE_PREFIXES};
 use crate::config::SettingsHub;
+use crate::platform::ANDROID_USER_ID_OFFSET;
 use crate::redirect::{policy, process_redirect_path};
 use std::ffi::CString;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -26,12 +27,55 @@ pub(crate) fn rewrite_cursor_storage_path_for_caller(
     if caller_package.is_empty() {
         return None;
     }
+    with_caller(&caller_package, caller_uid, || {
+        rewrite_cursor_storage_path_with_mode(original_text, !preserve_missing_target)
+    })
+}
+
+// 创建或扫描时按调用方求实际落盘路径，不要求目标已存在；caller_uid 未知时按映射路径反推应用
+pub(crate) fn resolve_redirect_target_for_caller(path: &str, caller_uid: i32) -> Option<String> {
+    crate::hook::refresh_runtime_config_throttled();
+    let (caller_package, caller_uid) = if caller_uid >= 0 {
+        (resolve_caller_package(caller_uid, path), caller_uid)
+    } else {
+        infer_caller_by_mapping_path(path)?
+    };
+    if caller_package.is_empty() {
+        return None;
+    }
+    let hub = InterceptHub::instance();
+    let decision = with_caller(&caller_package, caller_uid, || {
+        process_redirect_path(hub, path)
+    });
+    // 只接受映射到公共目录的结果；回落到应用私有沙盒时不改索引，保持原有隐藏行为
+    if !decision.is_redirect()
+        || decision.new_path.is_empty()
+        || decision.new_path.contains("/Android/")
+    {
+        return None;
+    }
+    Some(decision.new_path)
+}
+
+// 旧扫描广播没有发送方身份，只接受唯一命中映射请求路径的应用，并换算到本进程所在用户
+fn infer_caller_by_mapping_path(path: &str) -> Option<(String, i32)> {
+    let self_uid = unsafe { libc::getuid() } as i32;
+    let package = SettingsHub::instance().resolve_redirect_package_by_path_for_user(self_uid, path);
+    let package_uid = policy::get_uid_for_package(&package);
+    if package_uid < 0 {
+        return None;
+    }
+    let user_base = self_uid - self_uid % ANDROID_USER_ID_OFFSET;
+    Some((package, user_base + package_uid % ANDROID_USER_ID_OFFSET))
+}
+
+fn with_caller<T>(caller_package: &str, caller_uid: i32, f: impl FnOnce() -> T) -> T {
     let hub = InterceptHub::instance();
     let previous_package = hub.get_current_caller_package();
     let previous_uid = hub.get_current_caller_uid();
-    hub.set_current_caller_package(&caller_package);
+    hub.set_current_caller_package(caller_package);
     hub.set_current_caller_uid(caller_uid);
-    let result = rewrite_cursor_storage_path_with_mode(original_text, !preserve_missing_target);
+    let result = f();
     hub.set_current_caller_package(&previous_package);
     hub.set_current_caller_uid(previous_uid);
     result

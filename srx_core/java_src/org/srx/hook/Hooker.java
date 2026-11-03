@@ -322,6 +322,8 @@ public class Hooker {
       throws Throwable;
   static native String filterPath(String path, int callerUid,
                                   boolean preserveMissingTarget);
+  // 按调用方返回实际落盘路径；callerUid 为 -1 时按映射路径反推应用，未命中返回 null
+  static native String resolveRedirectPath(String path, int callerUid);
 
   static void logCursor(String stage, Cursor cursor, int pathColumn,
                         int before, int after, int callerUid) {
