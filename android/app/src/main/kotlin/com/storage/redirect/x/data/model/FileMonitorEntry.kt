@@ -26,7 +26,8 @@ data class FileMonitorEntry(
     val uid: Int = 0,
     val identifyMethod: String = "",
 ) {
-    val displayPath: String get() = path
+    // 监视链路只接收主用户共享存储路径，展示时省略固定根目录；多用户接入时需改为保留用户标识
+    val displayPath: String get() = path.removePrefix(PRIMARY_STORAGE_ROOT).ifEmpty { "/" }
 
     // 共享 UID 保留整体身份，不能随意归到其中一个应用。
     val actorIdentity: String get() = caller.ifBlank { packageName }
@@ -59,6 +60,7 @@ data class FileMonitorEntry(
         }
 
     companion object {
+        private const val PRIMARY_STORAGE_ROOT = "/storage/emulated/0"
         private val TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.ROOT)
 
         fun parse(line: String): FileMonitorEntry {
