@@ -432,7 +432,8 @@ fun AppsPage(
     ) {
         var list = apps.toList()
         if (!showSystemApps) {
-            list = list.filterNot { it.isSystemApp }
+            // 已启用重定向的系统应用始终显示，避免隐藏后无法查看或关闭其配置
+            list = list.filterNot { it.isSystemApp && it.packageName !in config.redirectApps }
         }
         if (searchQuery.isNotBlank()) {
             list = list.filter {
