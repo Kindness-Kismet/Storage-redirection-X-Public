@@ -76,7 +76,6 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.basic.VerticalDivider
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.window.WindowDialog
@@ -87,7 +86,6 @@ private val RULE_CONFIG_ITEM_SPACING = 4.dp
 private val RULE_CONFIG_CARD_CONTENT_PADDING = 16.dp
 private val RULE_CONFIG_APP_ICON_SIZE = 40.dp
 private val RULE_CONFIG_APP_ICON_END_PADDING = 12.dp
-private val RULE_CONFIG_ACTION_DIVIDER_PADDING = 12.dp
 private const val RULE_CONFIG_WARNING_CARD_ALPHA = 0.12f
 private val RULE_CONFIG_DIALOG_FIELD_SPACING = 8.dp
 private val RULE_CONFIG_DIALOG_BOTTOM_SPACING = 16.dp
@@ -457,6 +455,7 @@ fun RuleConfigPage(
                                 )
                             }
                             CardActionRow {
+                                // 直接进入浏览器选择，添加后可在列表中点击路径手动编辑
                                 CardActionButton(
                                     icon = AppIcons.Add,
                                     text = stringResource(R.string.rule_config_add_path),
@@ -464,24 +463,9 @@ fun RuleConfigPage(
                                         pathDialogIndex = null
                                         dialogPathInput = ""
                                         pathDialogErrorResId = null
-                                        showPathDialog.value = true
-                                    },
-                                    modifier = Modifier.testTag("rule_config_add_path"),
-                                )
-                                VerticalDivider(
-                                    modifier = Modifier.padding(vertical = RULE_CONFIG_ACTION_DIVIDER_PADDING),
-                                    color = MiuixTheme.colorScheme.dividerLine,
-                                )
-                                CardActionButton(
-                                    icon = AppIcons.Folder,
-                                    text = stringResource(R.string.rule_config_browse),
-                                    onClick = {
-                                        pathDialogIndex = null
-                                        dialogPathInput = ""
-                                        pathDialogErrorResId = null
                                         browseStack.push(BrowseTarget.Path)
                                     },
-                                    modifier = Modifier.testTag("rule_config_browse_paths"),
+                                    modifier = Modifier.testTag("rule_config_add_path"),
                                 )
                             }
                         }
