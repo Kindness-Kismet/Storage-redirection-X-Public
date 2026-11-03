@@ -1,5 +1,21 @@
 package com.storage.redirect.x.data.model
 
+// 真实路径规则以前缀区分类型，与核心配置解析保持一致
+enum class RealPathRuleMode(val prefix: String) {
+    Allow(""),
+    Exclude("!"),
+    ReadOnly("^");
+
+    fun next(): RealPathRuleMode = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun of(rule: String): RealPathRuleMode {
+            val value = rule.trim()
+            return entries.firstOrNull { it.prefix.isNotEmpty() && value.startsWith(it.prefix) } ?: Allow
+        }
+    }
+}
+
 // 整体重定向配置（白名单模式）
 data class RedirectConfig(
     val userId: Int = 0,
@@ -128,22 +144,17 @@ data class RedirectConfig(
     }
 
     companion object {
-        // 标准化允许路径规则：支持 ! 前缀和通配符
+        // 标准化允许路径规则：支持 ! 与 ^ 前缀和通配符
         fun normalizeAllowedPath(raw: String): String? {
             val value = raw.trim()
             if (value.isEmpty()) return null
 
-            val (isExcluded, bodyRaw) = if (value.startsWith("!")) {
-                true to value.drop(1).trimStart()
-            } else {
-                false to value
-            }
-
-            var body = normalizeRelativePath(bodyRaw) ?: return null
-            if (isExcluded) {
+            val mode = RealPathRuleMode.of(value)
+            var body = normalizeRelativePath(value.drop(mode.prefix.length).trimStart()) ?: return null
+            if (mode == RealPathRuleMode.Exclude) {
                 body = normalizeExcludedHiddenSegments(body)
             }
-            return if (isExcluded) "!$body" else body
+            return mode.prefix + body
         }
 
         // 标准化映射路径：仅接受普通相对路径，不支持 ! 和通配符
@@ -155,31 +166,25 @@ data class RedirectConfig(
             return normalizeRelativePath(value)
         }
 
-        // 校验真实路径规则：允许 ! 前缀和通配符
+        // 校验真实路径规则：允许 ! 与 ^ 前缀和通配符
         fun validateAllowedPath(raw: String): PathValidationResult {
             val rawValue = raw.trim()
             if (rawValue.isEmpty()) {
                 return PathValidationResult.Empty
             }
 
-            val (isExcluded, bodyRaw) = if (rawValue.startsWith("!")) {
-                true to rawValue.drop(1).trimStart()
-            } else {
-                false to rawValue
-            }
-
-            val validation = validateRelativePath(bodyRaw)
+            val mode = RealPathRuleMode.of(rawValue)
+            val validation = validateRelativePath(rawValue.drop(mode.prefix.length).trimStart())
             if (validation !is PathValidationResult.Valid) {
                 return validation
             }
 
-            val body = if (isExcluded) {
+            val body = if (mode == RealPathRuleMode.Exclude) {
                 normalizeExcludedHiddenSegments(validation.normalized)
             } else {
                 validation.normalized
             }
-            val normalized = if (isExcluded) "!$body" else body
-            return PathValidationResult.Valid(normalized)
+            return PathValidationResult.Valid(mode.prefix + body)
         }
 
         // 校验映射路径：不允许 ! 前缀和通配符

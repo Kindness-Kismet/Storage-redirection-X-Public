@@ -169,6 +169,7 @@
     <string name="rule_config_restart_hint">修改后将自动停止目标应用以使配置生效</string>
     <string name="rule_config_section_count">%1$s · %2$d</string>
     <string name="rule_config_tag_excluded">排除</string>
+    <string name="rule_config_tag_readonly">只读</string>
     <string name="rule_config_shared_uid_title">共享 UID</string>
     <string name="rule_config_shared_uid_hint">此应用与以下应用共享 UID，开关或配置任一应用将同步影响所有关联应用：</string>
     <string name="rule_config_save_failed">保存失败</string>
@@ -320,6 +321,7 @@
     <string name="browser_current_location">当前位置</string>
     <string name="browser_allow_access">允许访问</string>
     <string name="browser_exclude_directory">排除目录</string>
+    <string name="browser_readonly_directory">只读目录</string>
     <string name="browser_clear_selection">清空选择</string>
     <string name="browser_show_hidden">显示隐藏目录</string>
     <string name="browser_no_selection">还没有选择目录</string>
@@ -330,6 +332,7 @@
     </plurals>
     <string name="browser_confirm_add">添加</string>
     <string name="browser_confirm_exclude">排除</string>
+    <string name="browser_confirm_readonly">只读</string>
     <string name="browser_path_collapse">收起</string>
     <plurals name="browser_path_more_levels">
         <item quantity="other">还有 %1$d 级</item>

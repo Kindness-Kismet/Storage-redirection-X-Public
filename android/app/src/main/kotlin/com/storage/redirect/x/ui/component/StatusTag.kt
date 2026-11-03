@@ -14,6 +14,7 @@ import top.yukonga.miuix.kmp.basic.Text
 // miuix 配色没有成功色与提醒色，深浅主题共用这两个固定色
 val STATUS_SUCCESS_COLOR = Color(0xFF1FAF54)
 val STATUS_WARNING_COLOR = Color(0xFFF08A00)
+val STATUS_READONLY_COLOR = Color(0xFFE0A800)
 
 private const val STATUS_TAG_BACKGROUND_ALPHA = 0.12f
 private val STATUS_TAG_CORNER_RADIUS = 6.dp

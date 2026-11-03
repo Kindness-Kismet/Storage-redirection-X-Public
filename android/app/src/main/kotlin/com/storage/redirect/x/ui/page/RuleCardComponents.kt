@@ -33,8 +33,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.storage.redirect.x.R
 import com.storage.redirect.x.data.model.PathValidationResult
+import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.ui.component.PAGE_GROUP_GAP
 import com.storage.redirect.x.ui.component.PAGE_ITEM_GAP
+import com.storage.redirect.x.ui.component.STATUS_READONLY_COLOR
 import com.storage.redirect.x.ui.component.StatusTag
 import com.storage.redirect.x.ui.icon.AppIcons
 import top.yukonga.miuix.kmp.basic.Card
@@ -94,26 +96,32 @@ internal fun AllowedPathHintCard(isVisible: Boolean) {
     }
 }
 
-// 排除规则去掉 ! 前缀，改用红色标签标出
+// 排除与只读规则去掉前缀，分别改用红色与黄色标签标出
 @Composable
 internal fun AllowedPathRow(path: String, onClick: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
-    val isExcluded = path.startsWith("!")
+    val mode = RealPathRuleMode.of(path)
     RuleRow(onClick = onClick, onDelete = onDelete, modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = path.removePrefix("!"),
+                text = path.trim().removePrefix(mode.prefix),
                 modifier = Modifier.weight(1f, fill = false),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 14.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (isExcluded) {
-                StatusTag(
+            when (mode) {
+                RealPathRuleMode.Exclude -> StatusTag(
                     label = stringResource(R.string.rule_config_tag_excluded),
                     color = MiuixTheme.colorScheme.error,
                     modifier = Modifier.padding(start = 6.dp),
                 )
+                RealPathRuleMode.ReadOnly -> StatusTag(
+                    label = stringResource(R.string.rule_config_tag_readonly),
+                    color = STATUS_READONLY_COLOR,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+                RealPathRuleMode.Allow -> Unit
             }
         }
     }

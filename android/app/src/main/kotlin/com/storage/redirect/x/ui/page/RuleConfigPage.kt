@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.storage.redirect.x.R
 import com.storage.redirect.x.ui.icon.AppIcons
 import com.storage.redirect.x.data.model.PathValidationResult
+import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.data.model.RedirectConfig
 import com.storage.redirect.x.data.model.RedirectTemplate
 import com.storage.redirect.x.data.model.StoragePathMapping
@@ -274,7 +275,7 @@ fun RuleConfigPage(
                 packageName = if (target == BrowseTarget.MappingCurrentPath) packageName else null,
                 multiSelect = target == BrowseTarget.Path && pathDialogIndex == null,
                 allowExclude = target == BrowseTarget.Path,
-                isInitiallyExcluded = target == BrowseTarget.Path && dialogPathInput.trim().startsWith("!"),
+                initialRuleMode = if (target == BrowseTarget.Path) RealPathRuleMode.of(dialogPathInput) else RealPathRuleMode.Allow,
                 onBack = onBrowserBack,
                 onPathSelect = { selected ->
                     when (target) {

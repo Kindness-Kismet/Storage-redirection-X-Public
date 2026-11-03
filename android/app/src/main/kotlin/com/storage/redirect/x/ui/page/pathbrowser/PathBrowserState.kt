@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.storage.redirect.x.data.model.PathValidationResult
+import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.data.model.RedirectConfig
 import com.storage.redirect.x.data.repository.PathBrowserRepository
 
@@ -16,7 +17,7 @@ internal class PathBrowserState(
     val packageName: String?,
     val multiSelect: Boolean,
     val allowExclude: Boolean,
-    isInitiallyExcluded: Boolean = false,
+    initialRuleMode: RealPathRuleMode = RealPathRuleMode.Allow,
 ) {
     var currentPath by mutableStateOf("")
         private set
@@ -31,7 +32,7 @@ internal class PathBrowserState(
         private set
     var showHidden by mutableStateOf(true)
     var isDescending by mutableStateOf(false)
-    var isExcludeMode by mutableStateOf(allowExclude && isInitiallyExcluded)
+    var ruleMode by mutableStateOf(if (allowExclude) initialRuleMode else RealPathRuleMode.Allow)
     var reloadKey by mutableIntStateOf(0)
     var isSearchActive by mutableStateOf(false)
     var isPathPanelExpanded by mutableStateOf(false)
@@ -100,7 +101,7 @@ internal class PathBrowserState(
 
     fun confirmedPaths(): List<String> {
         if (!canConfirm) return emptyList()
-        val prefix = if (allowExclude && isExcludeMode) "!" else ""
+        val prefix = ruleMode.prefix
         val paths = if (multiSelect) selectedPaths.toList() else listOf(currentPath)
         return paths.map { prefix + it }
     }

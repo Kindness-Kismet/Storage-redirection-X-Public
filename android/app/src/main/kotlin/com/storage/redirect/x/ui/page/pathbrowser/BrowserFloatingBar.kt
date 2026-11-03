@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.storage.redirect.x.R
+import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.ui.component.BottomFloatingBar
 import com.storage.redirect.x.ui.component.FLOATING_BAR_ITEM_HEIGHT
 import com.storage.redirect.x.ui.component.PillButton
@@ -58,11 +59,17 @@ private fun MultiSelectActions(state: PathBrowserState, onConfirm: () -> Unit) {
     val colors = browserColors()
     val accent = state.accentColor()
     if (state.allowExclude) {
+        val modeLabel = when (state.ruleMode) {
+            RealPathRuleMode.Allow -> R.string.browser_allow_access
+            RealPathRuleMode.Exclude -> R.string.browser_exclude_directory
+            RealPathRuleMode.ReadOnly -> R.string.browser_readonly_directory
+        }
+        val isAllowMode = state.ruleMode == RealPathRuleMode.Allow
         BarChip(
-            text = stringResource(if (state.isExcludeMode) R.string.browser_exclude_directory else R.string.browser_allow_access),
-            color = if (state.isExcludeMode) colors.error else colors.text,
-            background = if (state.isExcludeMode) colors.errorSelected else MiuixTheme.colorScheme.secondaryVariant,
-            onClick = { state.isExcludeMode = !state.isExcludeMode },
+            text = stringResource(modeLabel),
+            color = if (isAllowMode) colors.text else accent,
+            background = if (isAllowMode) MiuixTheme.colorScheme.secondaryVariant else state.selectedRowColor(),
+            onClick = { state.ruleMode = state.ruleMode.next() },
             modifier = Modifier.testTag("browser_rule_mode"),
             leadingIcon = AppIcons.Swap,
         )
@@ -77,7 +84,13 @@ private fun MultiSelectActions(state: PathBrowserState, onConfirm: () -> Unit) {
         fontWeight = FontWeight.SemiBold,
     )
     PillButton(
-        text = stringResource(if (state.isExcludeMode) R.string.browser_confirm_exclude else R.string.browser_confirm_add),
+        text = stringResource(
+            when (state.ruleMode) {
+                RealPathRuleMode.Allow -> R.string.browser_confirm_add
+                RealPathRuleMode.Exclude -> R.string.browser_confirm_exclude
+                RealPathRuleMode.ReadOnly -> R.string.browser_confirm_readonly
+            },
+        ),
         onClick = onConfirm,
         modifier = Modifier.testTag("browser_confirm"),
         enabled = state.canConfirm,
