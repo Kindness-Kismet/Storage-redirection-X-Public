@@ -1,6 +1,7 @@
 // 应用 specialize 后流程：读取挂载结果并安装 PLT Hook
 use super::RuntimeFlow;
 use crate::hook::InterceptHub;
+use crate::logging::Logger;
 use crate::platform;
 use crate::platform::paths::monotonic_ms;
 use crate::platform::unique_fd::UniqueFd;
@@ -22,11 +23,16 @@ impl RuntimeFlow {
 
         if self.should_skip_post_work {
             log_post_perf(self, "skip", 0, 0, perf_started_ms);
+            Logger::shutdown();
             return;
         }
 
         if !self.should_redirect && !self.should_monitor {
             log_post_perf(self, "bypass", 0, 0, perf_started_ms);
+            // 仅装监视桥的 Provider 进程会常驻，日志 socket 关闭后不会重建
+            if !self.should_keep_module_loaded {
+                Logger::shutdown();
+            }
             return;
         }
 
@@ -58,6 +64,10 @@ impl RuntimeFlow {
         let hook_ms = monotonic_ms().saturating_sub(hook_started_ms);
 
         log_post_perf(self, "done", mount_wait_ms, hook_ms, perf_started_ms);
+
+        if !self.is_system_writer_hook_redirect && !self.should_keep_module_loaded {
+            Logger::shutdown();
+        }
     }
 }
 

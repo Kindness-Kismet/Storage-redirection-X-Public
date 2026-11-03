@@ -52,6 +52,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+          # 缓存键只随构建文件、版本目录与 wrapper 变化，依赖不变时不新增条目
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle.kts
+            android/gradle/libs.versions.toml
+            android/gradle/wrapper/gradle-wrapper.properties
 
       - name: 配置 Python
         uses: actions/setup-python@v6.3.0
@@ -67,9 +73,6 @@ jobs:
         uses: android-actions/setup-android@v4.0.1
         with:
           packages: platform-tools
-
-      - name: 配置 Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: 安装主机编译工具
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build

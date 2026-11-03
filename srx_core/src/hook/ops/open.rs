@@ -142,12 +142,6 @@ pub unsafe extern "C" fn hooked_open(pathname: *const c_char, flags: c_int, mode
                 return call_open(pathname, flags, mode);
             }
 
-            if (flags & libc::O_ACCMODE) == libc::O_RDONLY
-                && let Some(fd) = super::super::mountinfo::open_sanitized_proc_fd(&path_text)
-            {
-                return fd;
-            }
-
             if !path_utils::is_relevant_storage_path(&path_text) {
                 diagnostic::record_fast_bypass("open", &path_text);
                 return call_open(pathname, flags, mode);
@@ -288,12 +282,6 @@ where
     let path_text = unsafe { c_str_to_string(pathname) };
     if path_text.is_empty() {
         return call_original(dirfd, pathname);
-    }
-
-    if (flags & libc::O_ACCMODE) == libc::O_RDONLY
-        && let Some(fd) = super::super::mountinfo::open_sanitized_proc_fd(&path_text)
-    {
-        return fd;
     }
 
     let is_relative = !path_text.starts_with('/');

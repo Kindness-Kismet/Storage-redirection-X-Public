@@ -10,6 +10,8 @@ allow zygote shell_data_file dir search
 allow zygote shell_data_file dir open
 allow zygote shell_data_file dir read
 allow zygote shell_data_file dir getattr
+# 系统代写进程在 specialize 前以 zygote 域对共享配置目录添加 inotify 监听
+allow zygote shell_data_file dir watch
 allow zygote shell_data_file file open
 allow zygote shell_data_file file read
 allow zygote shell_data_file file getattr

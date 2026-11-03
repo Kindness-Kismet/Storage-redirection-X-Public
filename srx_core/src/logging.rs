@@ -5,6 +5,7 @@ use libc::{
 use log::{Level as LogLevel, LevelFilter, Log, Metadata, Record};
 use std::ffi::CString;
 use std::mem;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Once, OnceLock};
 
 const LOG_LEVEL_VERBOSE: i32 = 0;
@@ -16,7 +17,6 @@ const LOG_LEVEL_ERROR: i32 = 4;
 const CURRENT_LOG_LEVEL: i32 = LOG_LEVEL_DEBUG;
 const DEFAULT_LOG_TAG: &str = "StorageRedirect";
 const STATS_LOG_TAG: &str = "Stats";
-const PRIVATE_LOG_SOCKET_NAME: &[u8] = b"storage.redirect.x.logd";
 
 const ANDROID_LOG_VERBOSE: i32 = 2;
 const ANDROID_LOG_DEBUG: i32 = 3;
@@ -37,11 +37,12 @@ pub enum Level {
 static LOG_INIT: Once = Once::new();
 static LOG_ADAPTER: LogAdapter = LogAdapter;
 static PRIVATE_LOG_SOCKET: OnceLock<Option<PrivateLogSocket>> = OnceLock::new();
+static PRIVATE_LOG_SOCKET_NAME: OnceLock<Vec<u8>> = OnceLock::new();
 
 struct LogAdapter;
 
 struct PrivateLogSocket {
-    fd: c_int,
+    fd: AtomicI32,
     addr: sockaddr_un,
     addr_len: libc::socklen_t,
 }
@@ -51,37 +52,66 @@ pub struct Logger;
 impl Logger {
     pub fn init(_package_name: Option<&str>) {
         ensure_log_adapter();
+        // 名字文件仅 root 可读：在 zygote 内读取并缓存，fork 出的子进程降权后沿用
+        private_log_socket_name();
+    }
+
+    // 关闭私有日志 socket 并清空句柄，避免 dlclose 卸载后残留打开的 fd
+    pub fn shutdown() {
+        if let Some(Some(socket)) = PRIVATE_LOG_SOCKET.get() {
+            let fd = socket.fd.swap(-1, Ordering::AcqRel);
+            if fd >= 0 {
+                unsafe {
+                    close(fd);
+                }
+            }
+        }
     }
 }
 
 impl PrivateLogSocket {
     fn new() -> Option<Self> {
+        let name = private_log_socket_name()?;
         let fd = unsafe { socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0) };
         if fd < 0 {
             return None;
         }
 
+        // 尝试将 fd 复制到 256 以上的高位，避免占用目标应用的连续低位 fd
+        let high_fd = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, 256) };
+        let final_fd = if high_fd >= 0 {
+            unsafe { close(fd) };
+            high_fd
+        } else {
+            fd
+        };
+
         let mut addr: sockaddr_un = unsafe { mem::zeroed() };
         addr.sun_family = AF_UNIX as _;
-        if PRIVATE_LOG_SOCKET_NAME.len() + 1 > addr.sun_path.len() {
+        if name.len() + 1 > addr.sun_path.len() {
             unsafe {
-                close(fd);
+                close(final_fd);
             }
             return None;
         }
         addr.sun_path[0] = 0;
-        for (index, byte) in PRIVATE_LOG_SOCKET_NAME.iter().enumerate() {
+        for (index, byte) in name.iter().enumerate() {
             addr.sun_path[index + 1] = *byte as _;
         }
 
         Some(Self {
-            fd,
+            fd: AtomicI32::new(final_fd),
             addr,
-            addr_len: sockaddr_un_len(PRIVATE_LOG_SOCKET_NAME.len() + 1),
+            addr_len: sockaddr_un_len(name.len() + 1),
         })
     }
 
     fn send(&self, level: Level, tag: &str, message: &str) {
+        let fd = self.fd.load(Ordering::Acquire);
+        if fd < 0 {
+            return;
+        }
+
         let message = sanitize_transport_message(message);
         if message.is_empty() {
             return;
@@ -90,13 +120,24 @@ impl PrivateLogSocket {
         let packet = format!("{}\t{}\t{}", level_to_code(level), tag, message);
         unsafe {
             let _ = sendto(
-                self.fd,
+                fd,
                 packet.as_ptr() as *const c_void,
                 packet.len(),
                 0,
                 &self.addr as *const _ as *const sockaddr,
                 self.addr_len,
             );
+        }
+    }
+}
+
+impl Drop for PrivateLogSocket {
+    fn drop(&mut self) {
+        let fd = self.fd.swap(-1, Ordering::AcqRel);
+        if fd >= 0 {
+            unsafe {
+                close(fd);
+            }
         }
     }
 }
@@ -267,6 +308,19 @@ fn private_log_socket() -> Option<&'static PrivateLogSocket> {
     PRIVATE_LOG_SOCKET
         .get_or_init(PrivateLogSocket::new)
         .as_ref()
+}
+
+fn private_log_socket_name() -> Option<&'static [u8]> {
+    if let Some(name) = PRIVATE_LOG_SOCKET_NAME.get() {
+        return Some(name);
+    }
+    let text =
+        std::fs::read_to_string(crate::platform::module_paths::LOGD_SOCKET_NAME_FILE).ok()?;
+    let name = text.trim();
+    if name.is_empty() {
+        return None;
+    }
+    Some(PRIVATE_LOG_SOCKET_NAME.get_or_init(|| name.as_bytes().to_vec()))
 }
 
 fn is_zygote_selinux_context() -> bool {

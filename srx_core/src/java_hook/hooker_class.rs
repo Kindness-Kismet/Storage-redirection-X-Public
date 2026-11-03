@@ -1,7 +1,7 @@
 // Hooker 类全局引用 + LSPlant native trampoline 绑定
 
 use super::lsplant;
-use crate::hook::rewrite_cursor_storage_path_for_caller;
+use crate::hook::{resolve_redirect_target_for_caller, rewrite_cursor_storage_path_for_caller};
 use crate::zygisk::jni::{
     call_object_method_a, get_method_id, get_object_class, new_global_ref, new_jstring_utf8,
     register_natives,
@@ -21,6 +21,8 @@ const CALLBACK_NAME: &[u8] = b"onMediaProviderQuery\0";
 const CALLBACK_SIG: &[u8] = b"(Lorg/srx/hook/Hooker;[Ljava/lang/Object;)Ljava/lang/Object;\0";
 const FILTER_PATH_NAME: &[u8] = b"filterPath\0";
 const FILTER_PATH_SIG: &[u8] = b"(Ljava/lang/String;IZ)Ljava/lang/String;\0";
+const RESOLVE_REDIRECT_PATH_NAME: &[u8] = b"resolveRedirectPath\0";
+const RESOLVE_REDIRECT_PATH_SIG: &[u8] = b"(Ljava/lang/String;I)Ljava/lang/String;\0";
 
 unsafe extern "C" fn refresh_provider_libraries(_env: *mut JNIEnv, _class: jclass) {
     crate::hook::refresh_provider_libraries();
@@ -68,6 +70,11 @@ pub fn init(env: *mut JNIEnv, hooker_class: jclass) -> bool {
             name: FILTER_PATH_NAME.as_ptr() as *mut _,
             signature: FILTER_PATH_SIG.as_ptr() as *mut _,
             fnPtr: filter_path as *mut _,
+        },
+        JNINativeMethod {
+            name: RESOLVE_REDIRECT_PATH_NAME.as_ptr() as *mut _,
+            signature: RESOLVE_REDIRECT_PATH_SIG.as_ptr() as *mut _,
+            fnPtr: resolve_redirect_path as *mut _,
         },
     ];
     if !register_natives(env, hooker_class, &methods) {
@@ -139,6 +146,23 @@ unsafe extern "C" fn filter_path(
         return new_jstring_utf8(env, HIDDEN_ROW_SENTINEL);
     }
     new_jstring_utf8(env, &rewritten)
+}
+
+// 未命中重定向时返回 null，由 Java 侧保留原路径
+unsafe extern "C" fn resolve_redirect_path(
+    env: *mut JNIEnv,
+    _class: jclass,
+    path: jstring,
+    caller_uid: jni_sys::jint,
+) -> jstring {
+    if env.is_null() || path.is_null() {
+        return std::ptr::null_mut();
+    }
+    let original = crate::zygisk::jni::get_jstring_utf8(env, path);
+    match resolve_redirect_target_for_caller(&original, caller_uid) {
+        Some(target) => new_jstring_utf8(env, &target),
+        None => std::ptr::null_mut(),
+    }
 }
 
 fn call_backup(env: *mut JNIEnv, hooker: jobject, args: jobjectArray) -> jobject {

@@ -112,17 +112,15 @@ if [ ! -f "$MAPPING_MIGRATION_MARKER" ] && [ -d "$APPS_DIR" ]; then
 fi
 
 # 将配置镜像同步到所有进程可访问的位置。
-# 使用独立 tmpfs 承载真实文件镜像，而不是 bind mount 模块配置目录，
-# 避免应用最终 mount namespace 里只看到空目录。
+# /dev 本身是各 mount namespace 共享的 tmpfs，直接建目录即可跨命名空间可见，
+# 不另行挂载，避免在所有应用的 mountinfo 中留下条目。
 SHARED_CONFIG_DIR="/dev/srx_config"
 SHARED_APPS_DIR="$SHARED_CONFIG_DIR/apps"
-if grep -q " $SHARED_CONFIG_DIR " /proc/mounts 2>/dev/null; then
-  umount "$SHARED_CONFIG_DIR" 2>/dev/null
-fi
-mkdir -p "$SHARED_CONFIG_DIR"
-mount -t tmpfs -o mode=0755,nosuid,nodev,noexec srx_config "$SHARED_CONFIG_DIR" 2>/dev/null || \
-  mount -o bind "$SHARED_CONFIG_DIR" "$SHARED_CONFIG_DIR" 2>/dev/null
 mkdir -p "$SHARED_APPS_DIR"
+# 日志 socket 抽象名每次开机随机生成且仅 root 可读，固定名字可被任意应用 bind 探测
+LOGD_SOCKET_NAME_FILE="$SHARED_CONFIG_DIR/.logd_socket"
+tr -d '-' < /proc/sys/kernel/random/uuid > "$LOGD_SOCKET_NAME_FILE"
+chmod 600 "$LOGD_SOCKET_NAME_FILE"
 chmod 755 "$SHARED_CONFIG_DIR" "$SHARED_APPS_DIR"
 chcon -R u:object_r:shell_data_file:s0 "$SHARED_CONFIG_DIR" 2>/dev/null
 
