@@ -110,6 +110,12 @@ public final class FileMonitorHooks extends Hooker {
           } else if ((name.equals("insert") || name.equals("update")) && p.length > 1
               && p[0] == Uri.class && p[1] == ContentValues.class) {
             install(provider, method, (isMedia ? "media_" : "download_") + name);
+          } else if (isMedia && name.equals("delete") && p.length == 3 && p[0] == Uri.class
+              && (p[1] == String.class || p[1] == Bundle.class)) {
+            install(provider, method, "media_delete");
+          } else if (isMedia && name.equals("openFile") && p.length >= 2 && p[0] == Uri.class
+              && p[1] == String.class) {
+            install(provider, method, "media_open");
           }
         }
       }
@@ -188,6 +194,11 @@ public final class FileMonitorHooks extends Hooker {
     }
     if (kind.equals("scan_file"))
       return scanFile(args);
+    // 只读保护的 delete 与 open 需在通用 media_ 分支之前分发
+    if (kind.equals("media_delete"))
+      return guardedDelete(args);
+    if (kind.equals("media_open"))
+      return guardedOpen(args);
     if (kind.startsWith("media_") || kind.startsWith("download_"))
       return providerOperation(args);
     Object result;
@@ -343,7 +354,7 @@ public final class FileMonitorHooks extends Hooker {
 
   // 插入后按实际落盘路径兜底，覆盖由 MediaProvider 选定默认目录的插入
   private boolean discardReadOnlyInsert(Uri inserted, int uid) {
-    for (String path : paths(inserted, null)) {
+    for (String path : paths(inserted, null, 0)) {
       if (!isReadOnly(path, uid))
         continue;
       provider.delete(inserted, null, null);
@@ -355,11 +366,12 @@ public final class FileMonitorHooks extends Hooker {
   // 改名或移动会改写只读目录中的文件，或把文件放进只读目录
   private boolean isReadOnlyMove(Object[] args, int uid) {
     ContentValues values = (ContentValues) args[2];
+    // 移入回收站会把文件改名为 .trashed- 前缀，同样属于改写
     if (values == null
         || !(values.containsKey("_data") || values.containsKey("relative_path")
-            || values.containsKey("_display_name")))
+            || values.containsKey("_display_name") || values.containsKey("is_trashed")))
       return false;
-    ArrayList<String> touched = paths((Uri) args[1], args);
+    ArrayList<String> touched = paths((Uri) args[1], args, 3);
     String destination = requestedPath(values, (Uri) args[1], uid);
     if (destination != null)
       touched.add(destination);
@@ -368,6 +380,36 @@ public final class FileMonitorHooks extends Hooker {
         return true;
     }
     return false;
+  }
+
+  // 任一命中行位于只读目录时整体拒绝，避免批量删除只删掉一部分
+  private Object guardedDelete(Object[] args) throws Throwable {
+    int uid = Binder.getCallingUid();
+    if (uid == android.os.Process.myUid() || INSIDE_PROVIDER.get())
+      return callBackup(args);
+    INSIDE_PROVIDER.set(true);
+    try {
+      for (String path : paths((Uri) args[1], args, 2)) {
+        if (isReadOnly(path, uid))
+          return 0;
+      }
+      return callBackup(args);
+    } finally {
+      INSIDE_PROVIDER.set(false);
+    }
+  }
+
+  // 只读目录中的已有文件仅允许只读打开，拒绝方式与系统无权访问时一致
+  private Object guardedOpen(Object[] args) throws Throwable {
+    int uid = Binder.getCallingUid();
+    String mode = (String) args[2];
+    if (uid == android.os.Process.myUid() || mode == null || mode.indexOf('w') < 0)
+      return callBackup(args);
+    for (String path : paths((Uri) args[1], null, 0)) {
+      if (isReadOnly(path, uid))
+        throw new java.io.FileNotFoundException("read-only: " + path);
+    }
+    return callBackup(args);
   }
 
   private Object providerOperation(Object[] args) throws Throwable {
@@ -394,7 +436,7 @@ public final class FileMonitorHooks extends Hooker {
       ContentValues values = (ContentValues) args[2];
       ArrayList<String> before = new ArrayList<>();
       if (isEnabled && kind.endsWith("update"))
-        before = paths(uri, args);
+        before = paths(uri, args, 3);
       Object result = callBackup(args);
       if (isForeignInsert && requestedLocation == null && result instanceof Uri
           && discardReadOnlyInsert((Uri) result, uid))
@@ -403,7 +445,7 @@ public final class FileMonitorHooks extends Hooker {
         return result;
       try {
         if (kind.endsWith("insert") && result instanceof Uri) {
-          ArrayList<String> inserted = paths((Uri) result, null);
+          ArrayList<String> inserted = paths((Uri) result, null, 0);
           if (inserted.isEmpty() && values != null) {
             String requested = values.getAsString("_data");
             if (requested == null && kind.equals("download_insert")) {
@@ -429,19 +471,21 @@ public final class FileMonitorHooks extends Hooker {
     }
   }
 
-  private ArrayList<String> paths(Uri uri, Object[] args) {
+  // selectionIndex 为 args 中选择条件或 Bundle 的位置，insert/update 与 delete 的参数布局不同
+  private ArrayList<String> paths(Uri uri, Object[] args, int selectionIndex) {
     ArrayList<String> paths = new ArrayList<>();
     String selection = null;
     String[] selectionArgs = null;
-    if (args != null && args.length > 3) {
-      if (args[3] instanceof Bundle) {
-        Bundle b = (Bundle) args[3];
+    if (args != null && args.length > selectionIndex) {
+      Object condition = args[selectionIndex];
+      if (condition instanceof Bundle) {
+        Bundle b = (Bundle) condition;
         selection = b.getString("android:query-arg-sql-selection");
         selectionArgs = b.getStringArray("android:query-arg-sql-selection-args");
-      } else if (args[3] instanceof String) {
-        selection = (String) args[3];
-        if (args.length > 4)
-          selectionArgs = (String[]) args[4];
+      } else if (condition instanceof String) {
+        selection = (String) condition;
+        if (args.length > selectionIndex + 1)
+          selectionArgs = (String[]) args[selectionIndex + 1];
       }
     }
     try (Cursor cursor =
