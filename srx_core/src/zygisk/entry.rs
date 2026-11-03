@@ -175,9 +175,10 @@ unsafe extern "C" fn pre_server_specialize(
     }
 }
 
-// system_server specialize 后无额外动作，仅为 ABI 保留占位
+// system_server specialize 后关闭日志 socket，避免 dlclose 后句柄残留
 unsafe extern "C" fn post_server_specialize(
     _impl_ptr: *mut std::ffi::c_void,
     _args: *const ServerSpecializeArgs,
 ) {
+    Logger::shutdown();
 }

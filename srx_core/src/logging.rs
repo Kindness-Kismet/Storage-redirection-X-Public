@@ -5,6 +5,7 @@ use libc::{
 use log::{Level as LogLevel, LevelFilter, Log, Metadata, Record};
 use std::ffi::CString;
 use std::mem;
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Once, OnceLock};
 
 const LOG_LEVEL_VERBOSE: i32 = 0;
@@ -41,7 +42,7 @@ static PRIVATE_LOG_SOCKET: OnceLock<Option<PrivateLogSocket>> = OnceLock::new();
 struct LogAdapter;
 
 struct PrivateLogSocket {
-    fd: c_int,
+    fd: AtomicI32,
     addr: sockaddr_un,
     addr_len: libc::socklen_t,
 }
@@ -52,6 +53,18 @@ impl Logger {
     pub fn init(_package_name: Option<&str>) {
         ensure_log_adapter();
     }
+
+    // 关闭私有日志 socket 并清空句柄，避免 dlclose 卸载后残留打开的 fd
+    pub fn shutdown() {
+        if let Some(Some(socket)) = PRIVATE_LOG_SOCKET.get() {
+            let fd = socket.fd.swap(-1, Ordering::AcqRel);
+            if fd >= 0 {
+                unsafe {
+                    close(fd);
+                }
+            }
+        }
+    }
 }
 
 impl PrivateLogSocket {
@@ -61,11 +74,20 @@ impl PrivateLogSocket {
             return None;
         }
 
+        // 尝试将 fd 复制到 256 以上的高位，避免占用目标应用的连续低位 fd
+        let high_fd = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, 256) };
+        let final_fd = if high_fd >= 0 {
+            unsafe { close(fd) };
+            high_fd
+        } else {
+            fd
+        };
+
         let mut addr: sockaddr_un = unsafe { mem::zeroed() };
         addr.sun_family = AF_UNIX as _;
         if PRIVATE_LOG_SOCKET_NAME.len() + 1 > addr.sun_path.len() {
             unsafe {
-                close(fd);
+                close(final_fd);
             }
             return None;
         }
@@ -75,13 +97,18 @@ impl PrivateLogSocket {
         }
 
         Some(Self {
-            fd,
+            fd: AtomicI32::new(final_fd),
             addr,
             addr_len: sockaddr_un_len(PRIVATE_LOG_SOCKET_NAME.len() + 1),
         })
     }
 
     fn send(&self, level: Level, tag: &str, message: &str) {
+        let fd = self.fd.load(Ordering::Acquire);
+        if fd < 0 {
+            return;
+        }
+
         let message = sanitize_transport_message(message);
         if message.is_empty() {
             return;
@@ -90,13 +117,24 @@ impl PrivateLogSocket {
         let packet = format!("{}\t{}\t{}", level_to_code(level), tag, message);
         unsafe {
             let _ = sendto(
-                self.fd,
+                fd,
                 packet.as_ptr() as *const c_void,
                 packet.len(),
                 0,
                 &self.addr as *const _ as *const sockaddr,
                 self.addr_len,
             );
+        }
+    }
+}
+
+impl Drop for PrivateLogSocket {
+    fn drop(&mut self) {
+        let fd = self.fd.swap(-1, Ordering::AcqRel);
+        if fd >= 0 {
+            unsafe {
+                close(fd);
+            }
         }
     }
 }
