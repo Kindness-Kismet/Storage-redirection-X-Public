@@ -682,7 +682,8 @@ fun RuleConfigPage(
         DialogButtonRow(
             show = showMappingDialog,
             onConfirm = {
-                val mappingRequestPathValidation = RedirectConfig.validateMappingPath(dialogMappingRequestPathInput)
+                val mappingRequestPathValidation =
+                    RedirectConfig.validateMappingPath(dialogMappingRequestPathInput, packageName)
                 if (mappingRequestPathValidation !is PathValidationResult.Valid) {
                     mappingDialogErrorResId = resolvePathValidationErrorResId(mappingRequestPathValidation)
                     return@DialogButtonRow false
