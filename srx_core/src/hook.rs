@@ -6,7 +6,6 @@ mod fuse_fixer;
 mod jni_query;
 mod media_fuse;
 mod monitor;
-pub(crate) mod mountinfo;
 mod ops;
 mod path;
 mod reload;
