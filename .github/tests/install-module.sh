@@ -127,7 +127,7 @@ reset_boot_guard_state() {
 
 check_loaded() {
   adb_root "test -d ${MODULE_DIR} && test ! -e ${MODULE_DIR}/disable" >/dev/null 2>&1 &&
-    adb_root "grep -q ' /dev/srx_config ' /proc/mounts" >/dev/null 2>&1
+    adb_root "test -d /dev/srx_config/apps && test -s /dev/srx_config/.logd_socket" >/dev/null 2>&1
 }
 
 is_module_disabled() {
