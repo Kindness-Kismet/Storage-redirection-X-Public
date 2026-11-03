@@ -2,6 +2,7 @@ use super::{MountPlanner, PrimaryMountFailure};
 use crate::platform::paths;
 use libc::{lstat, stat as c_stat};
 use std::ffi::CString;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const ALIAS_SUCCESS_LOG_STEP: u64 = 128;
@@ -96,10 +97,17 @@ impl MountPlanner {
     ) -> bool {
         let mut is_any_mounted = false;
         let alias_targets = self.expand_storage_alias_paths(primary_target);
+        let mut mounted_targets: Vec<PathBuf> = Vec::new();
 
         for target in alias_targets {
             let is_primary_target = target == primary_target;
             if !is_primary_target && !path_exists(&target) {
+                continue;
+            }
+            // /storage/self/primary 等别名是指向已挂载路径的符号链接，再 bind 会在同一挂载点叠出第二层
+            let resolved_target =
+                std::fs::canonicalize(&target).unwrap_or_else(|_| PathBuf::from(&target));
+            if mounted_targets.contains(&resolved_target) {
                 continue;
             }
 
@@ -132,6 +140,7 @@ impl MountPlanner {
             }
 
             is_any_mounted = true;
+            mounted_targets.push(resolved_target);
             if !is_primary_target && let Some(log_text) = alias_success_log {
                 let alias_ok_count = ALIAS_SUCCESS_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
                 if should_log_step(alias_ok_count, ALIAS_SUCCESS_LOG_STEP) {
