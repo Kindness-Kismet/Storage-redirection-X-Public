@@ -288,7 +288,6 @@
     <!-- Common -->
     <string name="common_ok">OK</string>
     <string name="common_cancel">Cancel</string>
-    <string name="common_close">Close</string>
     <string name="common_back">Back</string>
     <string name="common_pull_to_refresh">Pull down to refresh</string>
     <string name="common_release_to_refresh">Release to refresh</string>
@@ -326,15 +325,11 @@
     <string name="browser_deselect_current">Deselect this folder</string>
     <string name="browser_restricted">Restricted folder</string>
     <string name="browser_select_directory">Select %1$s</string>
-    <string name="browser_selected_count">Selected %1$d</string>
     <string name="browser_current_location">Current location</string>
     <string name="browser_allow_access">Allow access</string>
     <string name="browser_exclude_directory">Exclude folders</string>
     <string name="browser_readonly_directory">Read-only folders</string>
-    <string name="browser_clear_selection">Clear selection</string>
     <string name="browser_show_hidden">Show hidden folders</string>
-    <string name="browser_no_selection">No folders selected yet</string>
-    <string name="browser_remove_directory">Remove %1$s</string>
     <string name="browser_go_to_root">Go to %1$s</string>
     <plurals name="browser_search_result_count">
         <item quantity="one">%2$d found in %1$s</item>

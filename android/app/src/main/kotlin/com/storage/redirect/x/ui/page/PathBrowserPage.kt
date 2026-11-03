@@ -25,7 +25,6 @@ import com.storage.redirect.x.ui.page.pathbrowser.BrowserDirectoryList
 import com.storage.redirect.x.ui.page.pathbrowser.BrowserFloatingBar
 import com.storage.redirect.x.ui.page.pathbrowser.BrowserPathPanel
 import com.storage.redirect.x.ui.page.pathbrowser.BrowserTopBar
-import com.storage.redirect.x.ui.page.pathbrowser.PathBrowserDialogs
 import com.storage.redirect.x.ui.page.pathbrowser.PathBrowserState
 
 @Composable
@@ -52,7 +51,7 @@ fun PathBrowserPage(
         else state.navigateTo(state.currentPath.substringBeforeLast('/', ""))
     }
     // 后注册的返回处理优先：路径面板 > 搜索 > 逐级返回；根目录交给页面栈播放预测返回
-    BackHandler(enabled = !state.isSelectionDialogVisible && state.currentPath.isNotEmpty(), onBack = navigateUp)
+    BackHandler(enabled = state.currentPath.isNotEmpty(), onBack = navigateUp)
     BackHandler(enabled = state.isSearchActive, onBack = state::closeSearch)
     BackHandler(enabled = state.isPathPanelExpanded) { state.isPathPanelExpanded = false }
 
@@ -83,5 +82,4 @@ fun PathBrowserPage(
             }
         }
     }
-    PathBrowserDialogs(state)
 }

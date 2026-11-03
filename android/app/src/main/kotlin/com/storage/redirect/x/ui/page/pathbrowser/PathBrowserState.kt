@@ -11,6 +11,9 @@ import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.data.model.RedirectConfig
 import com.storage.redirect.x.data.repository.PathBrowserRepository
 
+// Covered 表示祖先目录已选中，此目录随祖先一起生效
+internal enum class DirectorySelection { None, Partial, Selected, Covered }
+
 @Stable
 internal class PathBrowserState(
     val userId: Int,
@@ -36,7 +39,6 @@ internal class PathBrowserState(
     var reloadKey by mutableIntStateOf(0)
     var isSearchActive by mutableStateOf(false)
     var isPathPanelExpanded by mutableStateOf(false)
-    var isSelectionDialogVisible by mutableStateOf(false)
     private var loadGeneration = 0
 
     // 目标可能属于其他用户或应用私有挂载点，不能使用当前用户的存储目录。
@@ -85,18 +87,29 @@ internal class PathBrowserState(
         reloadKey++
     }
 
+    fun selectionOf(path: String): DirectorySelection = when {
+        path in selectedPaths -> DirectorySelection.Selected
+        selectedPaths.any { isAncestor(it, path) } -> DirectorySelection.Covered
+        selectedPaths.any { isAncestor(path, it) } -> DirectorySelection.Partial
+        else -> DirectorySelection.None
+    }
+
+    // 选中父目录时移除已选子目录，祖先已选中时子目录不再单独加入
     fun togglePath(path: String) {
         if (!multiSelect || !canSelect(path)) return
-        selectedPaths = if (path in selectedPaths) selectedPaths - path else selectedPaths + path
+        selectedPaths = when (selectionOf(path)) {
+            DirectorySelection.Selected -> selectedPaths - path
+            DirectorySelection.Covered -> return
+            DirectorySelection.None, DirectorySelection.Partial ->
+                selectedPaths.filterNot { isAncestor(path, it) }.toSet() + path
+        }
     }
+
+    private fun isAncestor(ancestor: String, path: String): Boolean = path.startsWith("$ancestor/")
 
     fun closeSearch() {
         isSearchActive = false
         query = ""
-    }
-
-    fun clearSelection() {
-        selectedPaths = emptySet()
     }
 
     fun confirmedPaths(): List<String> {

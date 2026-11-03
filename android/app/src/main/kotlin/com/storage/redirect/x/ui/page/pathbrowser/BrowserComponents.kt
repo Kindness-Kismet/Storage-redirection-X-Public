@@ -90,7 +90,7 @@ internal fun BrowserButton(
 
 @Composable
 internal fun BrowserCheckbox(
-    isSelected: Boolean,
+    selection: DirectorySelection,
     description: String,
     onClick: () -> Unit,
     color: Color,
@@ -98,9 +98,14 @@ internal fun BrowserCheckbox(
 ) {
     Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp), Alignment.Center) {
         Checkbox(
-            state = if (isSelected) ToggleableState.On else ToggleableState.Off,
+            state = when (selection) {
+                DirectorySelection.Selected, DirectorySelection.Covered -> ToggleableState.On
+                DirectorySelection.Partial -> ToggleableState.Indeterminate
+                DirectorySelection.None -> ToggleableState.Off
+            },
             onClick = onClick,
             modifier = modifier.semantics { contentDescription = description },
+            enabled = selection != DirectorySelection.Covered,
             colors = CheckboxDefaults.checkboxColors(checkedBackgroundColor = color),
         )
     }

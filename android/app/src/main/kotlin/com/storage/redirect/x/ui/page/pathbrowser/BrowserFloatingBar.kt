@@ -38,7 +38,7 @@ private val BAR_CHIP_ICON_SIZE = 18.dp
 private val BAR_FOLDER_ICON_SIZE = 22.dp
 private val BAR_FOLDER_NAME_MAX_WIDTH = 160.dp
 
-// 多选：模式、已选数量（点开清单）、主按钮；单选：当前目录名与“选择当前目录”
+// 多选：模式与主按钮；单选：当前目录名与“选择当前目录”
 @Composable
 internal fun BoxScope.BrowserFloatingBar(state: PathBrowserState, onSpaceChange: (Dp) -> Unit, onConfirm: () -> Unit) {
     BottomFloatingBar(
@@ -74,15 +74,6 @@ private fun MultiSelectActions(state: PathBrowserState, onConfirm: () -> Unit) {
             leadingIcon = AppIcons.Swap,
         )
     }
-    BarChip(
-        text = stringResource(R.string.browser_selected_count, state.selectedPaths.size),
-        color = accent,
-        background = Color.Transparent,
-        onClick = { state.isSelectionDialogVisible = true },
-        modifier = Modifier.testTag("browser_selected_paths"),
-        trailingIcon = AppIcons.ChevronUp,
-        fontWeight = FontWeight.SemiBold,
-    )
     PillButton(
         text = stringResource(
             when (state.ruleMode) {
@@ -131,8 +122,6 @@ private fun BarChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     leadingIcon: ImageVector? = null,
-    trailingIcon: ImageVector? = null,
-    fontWeight: FontWeight = FontWeight.Normal,
 ) {
     Row(
         modifier
@@ -145,7 +134,6 @@ private fun BarChip(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         leadingIcon?.let { Icon(it, null, Modifier.size(BAR_CHIP_ICON_SIZE), tint = color) }
-        BrowserText(text, color = color, fontSize = 15.sp, fontWeight = fontWeight, maxLines = 1)
-        trailingIcon?.let { Icon(it, null, Modifier.size(BAR_CHIP_ICON_SIZE), tint = color) }
+        BrowserText(text, color = color, fontSize = 15.sp, maxLines = 1)
     }
 }

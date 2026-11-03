@@ -279,7 +279,6 @@
     <!-- Common -->
     <string name="common_ok">确定</string>
     <string name="common_cancel">取消</string>
-    <string name="common_close">关闭</string>
     <string name="common_back">返回</string>
     <string name="common_pull_to_refresh">下拉刷新</string>
     <string name="common_release_to_refresh">松开刷新</string>
@@ -317,15 +316,11 @@
     <string name="browser_deselect_current">取消选择此目录</string>
     <string name="browser_restricted">受限目录</string>
     <string name="browser_select_directory">选择 %1$s</string>
-    <string name="browser_selected_count">已选 %1$d 项</string>
     <string name="browser_current_location">当前位置</string>
     <string name="browser_allow_access">允许访问</string>
     <string name="browser_exclude_directory">排除目录</string>
     <string name="browser_readonly_directory">只读目录</string>
-    <string name="browser_clear_selection">清空选择</string>
     <string name="browser_show_hidden">显示隐藏目录</string>
-    <string name="browser_no_selection">还没有选择目录</string>
-    <string name="browser_remove_directory">移除 %1$s</string>
     <string name="browser_go_to_root">回到%1$s</string>
     <plurals name="browser_search_result_count">
         <item quantity="other">在 %1$s 中找到 %2$d 个</item>
