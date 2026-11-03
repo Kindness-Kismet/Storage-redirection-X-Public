@@ -162,11 +162,11 @@ data class RedirectConfig(
                 .associateBy { it.drop(RealPathRuleMode.of(it).prefix.length) }
                 .values.sorted()
 
-        // 标准化映射路径：仅接受普通相对路径，不支持 ! 和通配符；privateOwner 允许该应用自己的私有子目录
+        // 标准化映射路径：仅接受普通相对路径，不支持规则前缀和通配符；privateOwner 允许该应用自己的私有子目录
         fun normalizeMappingPath(raw: String, privateOwner: String? = null): String? {
             val value = raw.trim()
             if (value.isEmpty()) return null
-            if (value.startsWith("!")) return null
+            if (RealPathRuleMode.of(value) != RealPathRuleMode.Allow) return null
             if (containsWildcard(value)) return null
             return normalizeRelativePath(value, privateOwner)
         }
@@ -192,13 +192,13 @@ data class RedirectConfig(
             return PathValidationResult.Valid(mode.prefix + body)
         }
 
-        // 校验映射路径：不允许 ! 前缀和通配符；privateOwner 允许该应用自己的私有子目录
+        // 校验映射路径：不允许规则前缀和通配符；privateOwner 允许该应用自己的私有子目录
         fun validateMappingPath(raw: String, privateOwner: String? = null): PathValidationResult {
             val value = raw.trim()
             if (value.isEmpty()) {
                 return PathValidationResult.Empty
             }
-            if (value.startsWith("!")) {
+            if (RealPathRuleMode.of(value) != RealPathRuleMode.Allow) {
                 return PathValidationResult.ExclusionNotAllowed
             }
             if (containsWildcard(value)) {

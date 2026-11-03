@@ -66,7 +66,7 @@ internal class PathBrowserState(
     fun canSelect(path: String): Boolean {
         if (path.isEmpty()) return false
         if (packageName != null) {
-            return !path.startsWith('/') && !path.startsWith('!') &&
+            return !path.startsWith('/') && RealPathRuleMode.of(path) == RealPathRuleMode.Allow &&
                 path.split('/').none { it == "." || it == ".." } &&
                 !path.contains('*') && !path.contains('?')
         }

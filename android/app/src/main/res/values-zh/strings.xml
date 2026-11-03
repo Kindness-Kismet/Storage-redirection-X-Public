@@ -180,7 +180,7 @@
     <string name="rule_config_error_same_paths">当前路径和目标路径不能相同</string>
     <string name="rule_config_error_android_prefix">路径不能位于 Android/data 下；映射的当前路径可使用本应用数据目录中除 sdcard 外的子目录</string>
     <string name="rule_config_error_mapping_wildcard">映射路径不支持 * 或 ? 通配符</string>
-    <string name="rule_config_error_mapping_exclusion">映射路径不支持 ! 排除前缀</string>
+    <string name="rule_config_error_mapping_exclusion">映射路径不支持 ! 或 ^ 规则前缀</string>
     <string name="rule_config_allowed_paths_rule_hint">支持通配符: * ?\n* 表示任意长度字符。\n? 表示单个字符。\n! 表示排除前缀。\n仅支持真实路径访问。</string>
     <string name="rule_config_allowed_paths_rule_hint_desc">查看规则说明</string>
     <string name="rule_config_browse">浏览</string>

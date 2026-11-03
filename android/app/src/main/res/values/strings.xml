@@ -181,7 +181,7 @@
     <string name="rule_config_error_same_paths">Current and target paths must be different</string>
     <string name="rule_config_error_android_prefix">Path cannot be under Android/data. A mapping\'s current path may use a subfolder of this app\'s own data folder other than sdcard</string>
     <string name="rule_config_error_mapping_wildcard">Mapping paths do not support * or ? wildcards</string>
-    <string name="rule_config_error_mapping_exclusion">Mapping paths do not support ! exclusion prefix</string>
+    <string name="rule_config_error_mapping_exclusion">Mapping paths do not support the ! or ^ rule prefixes</string>
     <string name="rule_config_allowed_paths_rule_hint">Supported wildcard symbols: * ?\n* matches any number of characters.\n? matches one character.\n! is the exclusion prefix.\nOnly real path access supports these rules.</string>
     <string name="rule_config_allowed_paths_rule_hint_desc">View rule help</string>
     <string name="rule_config_browse">Browse</string>
