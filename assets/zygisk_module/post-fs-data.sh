@@ -117,6 +117,10 @@ fi
 SHARED_CONFIG_DIR="/dev/srx_config"
 SHARED_APPS_DIR="$SHARED_CONFIG_DIR/apps"
 mkdir -p "$SHARED_APPS_DIR"
+# 日志 socket 抽象名每次开机随机生成且仅 root 可读，固定名字可被任意应用 bind 探测
+LOGD_SOCKET_NAME_FILE="$SHARED_CONFIG_DIR/.logd_socket"
+tr -d '-' < /proc/sys/kernel/random/uuid > "$LOGD_SOCKET_NAME_FILE"
+chmod 600 "$LOGD_SOCKET_NAME_FILE"
 chmod 755 "$SHARED_CONFIG_DIR" "$SHARED_APPS_DIR"
 chcon -R u:object_r:shell_data_file:s0 "$SHARED_CONFIG_DIR" 2>/dev/null
 

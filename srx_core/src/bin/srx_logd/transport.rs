@@ -3,36 +3,22 @@ use libc::{
     AF_UNIX, SO_RCVBUF, SOCK_CLOEXEC, SOCK_DGRAM, SOCK_NONBLOCK, SOL_SOCKET, bind, c_void, close,
     sendto, setsockopt, sockaddr, sockaddr_un, socket,
 };
+use std::fs;
 use std::io;
 use std::mem;
 
-const SOCKET_NAME: &[u8] = b"storage.redirect.x.logd";
+// 与模块侧 module_paths::LOGD_SOCKET_NAME_FILE 一致，由 post-fs-data 每次开机随机生成
+const SOCKET_NAME_FILE: &str = "/dev/srx_config/.logd_socket";
 const SOCKET_RECV_BUFFER_BYTES: libc::c_int = 512 * 1024;
 
 pub(crate) fn bind_log_socket() -> io::Result<i32> {
+    let (addr, len) = socket_addr()?;
     let fd = unsafe { socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0) };
     if fd < 0 {
         return Err(io::Error::last_os_error());
     }
     configure_socket_recv_buffer(fd);
 
-    let mut addr: sockaddr_un = unsafe { mem::zeroed() };
-    addr.sun_family = AF_UNIX as _;
-    if SOCKET_NAME.len() + 1 > addr.sun_path.len() {
-        unsafe {
-            close(fd);
-        }
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "socket name too long",
-        ));
-    }
-    addr.sun_path[0] = 0;
-    for (index, byte) in SOCKET_NAME.iter().enumerate() {
-        addr.sun_path[index + 1] = *byte as _;
-    }
-
-    let len = sockaddr_un_len(SOCKET_NAME.len() + 1);
     let ret = unsafe { bind(fd, &addr as *const _ as *const sockaddr, len) };
     if ret != 0 {
         let error = io::Error::last_os_error();
@@ -57,6 +43,24 @@ fn configure_socket_recv_buffer(fd: i32) {
     }
 }
 
+// 读取本次开机的抽象名并构造地址；名字缺失时报错，不回落到可被探测的固定名字
+fn socket_addr() -> io::Result<(sockaddr_un, libc::socklen_t)> {
+    let text = fs::read_to_string(SOCKET_NAME_FILE)?;
+    let name = text.trim().as_bytes();
+    let mut addr: sockaddr_un = unsafe { mem::zeroed() };
+    addr.sun_family = AF_UNIX as _;
+    if name.is_empty() || name.len() + 1 > addr.sun_path.len() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "invalid log socket name",
+        ));
+    }
+    for (index, byte) in name.iter().enumerate() {
+        addr.sun_path[index + 1] = *byte as _;
+    }
+    Ok((addr, sockaddr_un_len(name.len() + 1)))
+}
+
 fn sockaddr_un_len(path_len: usize) -> libc::socklen_t {
     (mem::size_of::<libc::sa_family_t>() + path_len) as libc::socklen_t
 }
@@ -69,29 +73,12 @@ pub(crate) struct ClientSocket {
 
 impl ClientSocket {
     pub(crate) fn new() -> Option<Self> {
+        let (addr, addr_len) = socket_addr().ok()?;
         let fd = unsafe { socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0) };
         if fd < 0 {
             return None;
         }
-
-        let mut addr: sockaddr_un = unsafe { mem::zeroed() };
-        addr.sun_family = AF_UNIX as _;
-        if SOCKET_NAME.len() + 1 > addr.sun_path.len() {
-            unsafe {
-                close(fd);
-            }
-            return None;
-        }
-        addr.sun_path[0] = 0;
-        for (index, byte) in SOCKET_NAME.iter().enumerate() {
-            addr.sun_path[index + 1] = *byte as _;
-        }
-
-        Some(Self {
-            fd,
-            addr,
-            addr_len: sockaddr_un_len(SOCKET_NAME.len() + 1),
-        })
+        Some(Self { fd, addr, addr_len })
     }
 
     pub(crate) fn send(&self, level: char, tag: &str, message: &str) -> io::Result<()> {
