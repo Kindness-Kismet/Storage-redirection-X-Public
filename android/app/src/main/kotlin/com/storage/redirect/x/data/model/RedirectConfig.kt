@@ -51,9 +51,7 @@ data class RedirectConfig(
     // 更新应用配置
     fun updateAppConfig(config: AppRedirectConfig): RedirectConfig {
         // 标准化路径
-        val cleanedPaths = config.allowedRealPaths
-            .mapNotNull { normalizeAllowedPath(it) }
-            .toSortedSet().toList()
+        val cleanedPaths = normalizeAllowedPaths(config.allowedRealPaths)
 
         val mappingByRequest = linkedMapOf<String, StoragePathMapping>()
         for (mapping in config.pathMappings) {
@@ -106,7 +104,8 @@ data class RedirectConfig(
     fun updateAllowedRealPath(packageName: String, index: Int, path: String): RedirectConfig {
         val existing = getAppConfig(packageName) ?: return this
         if (index >= existing.allowedRealPaths.size) return this
-        val newPaths = existing.allowedRealPaths.toMutableList().apply { set(index, path) }
+        // 编辑结果移到末尾，与同一路径的其他规则去重时以本次编辑为准
+        val newPaths = existing.allowedRealPaths.filterIndexed { i, _ -> i != index } + path
         return updateAppConfig(existing.copy(allowedRealPaths = newPaths))
     }
 
@@ -156,6 +155,12 @@ data class RedirectConfig(
             }
             return mode.prefix + body
         }
+
+        // 同一路径只保留一条规则，靠后的覆盖靠前的，使新添加的类型生效
+        fun normalizeAllowedPaths(paths: List<String>): List<String> =
+            paths.mapNotNull { normalizeAllowedPath(it) }
+                .associateBy { it.drop(RealPathRuleMode.of(it).prefix.length) }
+                .values.sorted()
 
         // 标准化映射路径：仅接受普通相对路径，不支持 ! 和通配符；privateOwner 允许该应用自己的私有子目录
         fun normalizeMappingPath(raw: String, privateOwner: String? = null): String? {

@@ -470,13 +470,10 @@ private fun TemplateEditorPage(
                     pathDialogErrorResId = resolvePathValidationErrorResId(validation)
                     return@TemplateDialogButtonRow false
                 }
-                val paths = currentTemplate.allowedRealPaths.toMutableList()
+                // 编辑结果追加到末尾，与同一路径的其他规则去重时以本次编辑为准
                 val index = pathDialogIndex
-                if (index == null) {
-                    paths.add(validation.normalized)
-                } else if (index in paths.indices) {
-                    paths[index] = validation.normalized
-                }
+                val paths = currentTemplate.allowedRealPaths.filterIndexed { i, _ -> i != index } +
+                    validation.normalized
                 updateTemplate(currentTemplate.copy(allowedRealPaths = paths))
                 true
             },
