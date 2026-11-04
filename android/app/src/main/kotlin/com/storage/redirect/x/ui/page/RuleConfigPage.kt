@@ -299,7 +299,7 @@ fun RuleConfigPage(
                 },
                 onPathsSelect = { paths ->
                     val validPaths = paths.mapNotNull { raw ->
-                        val validation = RedirectConfig.validateAllowedPath(raw)
+                        val validation = RedirectConfig.validateRealPathRule(raw)
                         if (validation is PathValidationResult.Valid) validation.normalized else null
                     }
                     if (validPaths.isEmpty()) {
@@ -572,7 +572,7 @@ fun RuleConfigPage(
         DialogButtonRow(
             show = showPathDialog,
             onConfirm = {
-                val validation = RedirectConfig.validateAllowedPath(dialogPathInput)
+                val validation = RedirectConfig.validateRealPathRule(dialogPathInput)
                 when (validation) {
                     is PathValidationResult.Valid -> {
                         pathDialogErrorResId = null
@@ -605,6 +605,11 @@ fun RuleConfigPage(
 
                     PathValidationResult.AndroidDataPath -> {
                         pathDialogErrorResId = R.string.rule_config_error_android_prefix
+                        false
+                    }
+
+                    PathValidationResult.AndroidAlwaysAllowed -> {
+                        pathDialogErrorResId = R.string.rule_config_error_android_always_allowed
                         false
                     }
 

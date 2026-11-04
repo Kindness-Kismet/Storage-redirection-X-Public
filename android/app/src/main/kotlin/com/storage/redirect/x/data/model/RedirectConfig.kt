@@ -143,6 +143,9 @@ data class RedirectConfig(
     }
 
     companion object {
+        // 后端始终恢复真实 Android 目录，视为隐含的允许规则
+        private const val ANDROID_DIRECTORY = "Android"
+
         // 标准化允许路径规则：支持 ! 与 ^ 前缀和通配符
         fun normalizeAllowedPath(raw: String): String? {
             val value = raw.trim()
@@ -156,11 +159,46 @@ data class RedirectConfig(
             return mode.prefix + body
         }
 
-        // 同一路径只保留一条规则，靠后的覆盖靠前的，使新添加的类型生效
-        fun normalizeAllowedPaths(paths: List<String>): List<String> =
-            paths.mapNotNull { normalizeAllowedPath(it) }
-                .associateBy { it.drop(RealPathRuleMode.of(it).prefix.length) }
-                .values.sorted()
+        // 同一路径只保留一条规则，靠后的覆盖靠前的；再按最近的祖先规则剔除不生效的规则
+        // 后端先恢复允许与只读目录，再挂排除，最后整体改只读，子挂载保留原有读写属性
+        fun normalizeAllowedPaths(paths: List<String>): List<String> {
+            val rulesByPath = paths.mapNotNull { normalizeAllowedPath(it) }
+                .associateBy { it.drop(RealPathRuleMode.of(it).prefix.length).lowercase() }
+            val keptRules = mutableListOf(ANDROID_DIRECTORY to RealPathRuleMode.Allow)
+            for (rule in rulesByPath.values.sortedBy { it.count { c -> c == '/' } }) {
+                val mode = RealPathRuleMode.of(rule)
+                val path = rule.drop(mode.prefix.length)
+                // 按深度加入，最后一个匹配的就是最近的祖先；通配符规则无法静态判断，原样保留
+                val ancestorMode = keptRules.lastOrNull { isPathCoveredBy(path, it.first) }?.second
+                val isEffective = containsWildcard(path) || when (mode) {
+                    // 祖先已恢复则重复，祖先为只读则一起只读，祖先被排除则被遮住
+                    RealPathRuleMode.Allow -> ancestorMode == null
+                    // 排除只作用于已恢复的真实目录
+                    RealPathRuleMode.Exclude ->
+                        ancestorMode == RealPathRuleMode.Allow || ancestorMode == RealPathRuleMode.ReadOnly
+                    RealPathRuleMode.ReadOnly -> ancestorMode != RealPathRuleMode.ReadOnly
+                }
+                if (isEffective) keptRules += path to mode
+            }
+            return keptRules.drop(1).map { (path, mode) -> mode.prefix + path }.sorted()
+        }
+
+        // 祖先或同一路径；祖先可以是通配符规则，存储按大小写不敏感处理
+        private fun isPathCoveredBy(path: String, ancestor: String): Boolean {
+            val segments = path.split('/')
+            val ancestorSegments = ancestor.split('/')
+            if (ancestorSegments.size > segments.size) return false
+            return ancestorSegments.zip(segments).all { (pattern, segment) ->
+                val regex = pattern.map { c ->
+                    when (c) {
+                        '*' -> ".*"
+                        '?' -> "."
+                        else -> Regex.escape(c.toString())
+                    }
+                }.joinToString("")
+                Regex(regex, RegexOption.IGNORE_CASE).matches(segment)
+            }
+        }
 
         // 标准化映射路径：仅接受普通相对路径，不支持规则前缀和通配符；privateOwner 允许该应用自己的私有子目录
         fun normalizeMappingPath(raw: String, privateOwner: String? = null): String? {
@@ -190,6 +228,18 @@ data class RedirectConfig(
                 validation.normalized
             }
             return PathValidationResult.Valid(mode.prefix + body)
+        }
+
+        // 后端始终恢复真实 Android 目录，只有 Android/media 下的排除与只读规则有意义
+        fun validateRealPathRule(raw: String): PathValidationResult {
+            val validation = validateAllowedPath(raw)
+            if (validation !is PathValidationResult.Valid) return validation
+            val mode = RealPathRuleMode.of(validation.normalized)
+            val segments = validation.normalized.drop(mode.prefix.length).split('/')
+            if (!segments[0].equals(ANDROID_DIRECTORY, ignoreCase = true)) return validation
+            val isMediaPath = segments.getOrNull(1).equals("media", ignoreCase = true)
+            return if (mode != RealPathRuleMode.Allow && isMediaPath) validation
+            else PathValidationResult.AndroidAlwaysAllowed
         }
 
         // 校验映射路径：不允许规则前缀和通配符；privateOwner 允许该应用自己的私有子目录
@@ -272,6 +322,7 @@ sealed class PathValidationResult {
     data object Absolute : PathValidationResult()
     data object Traversal : PathValidationResult()
     data object AndroidDataPath : PathValidationResult()
+    data object AndroidAlwaysAllowed : PathValidationResult()
     data object WildcardNotAllowed : PathValidationResult()
     data object ExclusionNotAllowed : PathValidationResult()
 }

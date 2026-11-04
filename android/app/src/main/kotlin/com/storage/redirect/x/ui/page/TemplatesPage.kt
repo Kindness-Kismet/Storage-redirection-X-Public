@@ -465,7 +465,7 @@ private fun TemplateEditorPage(
             confirmTag = "template_allowed_path_confirm",
             cancelTag = "template_allowed_path_cancel",
             onConfirm = {
-                val validation = RedirectConfig.validateAllowedPath(dialogPathInput)
+                val validation = RedirectConfig.validateRealPathRule(dialogPathInput)
                 if (validation !is PathValidationResult.Valid) {
                     pathDialogErrorResId = resolvePathValidationErrorResId(validation)
                     return@TemplateDialogButtonRow false

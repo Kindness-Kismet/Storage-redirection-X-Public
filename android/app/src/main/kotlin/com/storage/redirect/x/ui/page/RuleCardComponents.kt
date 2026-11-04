@@ -245,6 +245,7 @@ internal fun resolvePathValidationErrorResId(result: PathValidationResult): Int 
         PathValidationResult.Absolute -> R.string.rule_config_error_absolute
         PathValidationResult.Traversal -> R.string.rule_config_error_traversal
         PathValidationResult.AndroidDataPath -> R.string.rule_config_error_android_prefix
+        PathValidationResult.AndroidAlwaysAllowed -> R.string.rule_config_error_android_always_allowed
         PathValidationResult.WildcardNotAllowed -> R.string.rule_config_error_mapping_wildcard
         PathValidationResult.ExclusionNotAllowed -> R.string.rule_config_error_mapping_exclusion
         is PathValidationResult.Valid -> R.string.rule_config_error_empty

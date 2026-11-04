@@ -60,8 +60,12 @@ internal class PathBrowserState(
         }.let { if (isDescending) it.reversed() else it }
 
     val canConfirm: Boolean
-        get() = if (multiSelect) selectedPaths.isNotEmpty()
-        else !isLoading && !hasLoadError && canSelect(currentPath)
+        get() = if (multiSelect) confirmablePaths.isNotEmpty()
+        else !isLoading && !hasLoadError && canSelect(currentPath) && !isAlwaysAllowed(currentPath)
+
+    // 切换模式后，已选目录可能变为始终允许，不再生成规则
+    private val confirmablePaths: List<String>
+        get() = selectedPaths.filterNot(::isAlwaysAllowed)
 
     fun canSelect(path: String): Boolean {
         if (path.isEmpty()) return false
@@ -88,6 +92,7 @@ internal class PathBrowserState(
     }
 
     fun selectionOf(path: String): DirectorySelection = when {
+        isAlwaysAllowed(path) -> DirectorySelection.Covered
         path in selectedPaths -> DirectorySelection.Selected
         selectedPaths.any { isAncestor(it, path) } -> DirectorySelection.Covered
         selectedPaths.any { isAncestor(path, it) } -> DirectorySelection.Partial
@@ -105,6 +110,10 @@ internal class PathBrowserState(
         }
     }
 
+    // 后端始终恢复 Android 目录，界面显示为已选，不生成规则
+    private fun isAlwaysAllowed(path: String): Boolean = allowExclude &&
+        RedirectConfig.validateRealPathRule(ruleMode.prefix + path) is PathValidationResult.AndroidAlwaysAllowed
+
     private fun isAncestor(ancestor: String, path: String): Boolean = path.startsWith("$ancestor/")
 
     fun closeSearch() {
@@ -115,7 +124,7 @@ internal class PathBrowserState(
     fun confirmedPaths(): List<String> {
         if (!canConfirm) return emptyList()
         val prefix = ruleMode.prefix
-        val paths = if (multiSelect) selectedPaths.toList() else listOf(currentPath)
+        val paths = if (multiSelect) confirmablePaths else listOf(currentPath)
         return paths.map { prefix + it }
     }
 
