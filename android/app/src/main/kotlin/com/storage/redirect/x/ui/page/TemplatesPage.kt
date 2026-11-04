@@ -1,5 +1,6 @@
 package com.storage.redirect.x.ui.page
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +33,7 @@ import com.storage.redirect.x.data.model.PathValidationResult
 import com.storage.redirect.x.data.model.RedirectConfig
 import com.storage.redirect.x.data.model.RedirectTemplate
 import com.storage.redirect.x.data.model.StoragePathMapping
+import com.storage.redirect.x.data.repository.PathBrowserRepository
 import com.storage.redirect.x.data.repository.TemplateRepository
 import com.storage.redirect.x.ui.component.PageMessageState
 import com.storage.redirect.x.ui.component.PillButton
@@ -229,9 +232,9 @@ private fun TemplateEditorPage(
     var renameInput by remember { mutableStateOf(currentTemplate.name) }
     var renameError by remember { mutableStateOf(false) }
 
-    val showPathDialog = remember { mutableStateOf(false) }
-    var dialogPathInput by remember { mutableStateOf("") }
-    var pathDialogErrorResId by remember { mutableStateOf<Int?>(null) }
+    val context = LocalContext.current
+    val pathBrowserRepo = remember { PathBrowserRepository() }
+    val browseStack = rememberPageStack<TemplateBrowseTarget>()
 
     val showMappingDialog = remember { mutableStateOf(false) }
     var dialogMappingRequestPathInput by remember { mutableStateOf("") }
@@ -248,127 +251,154 @@ private fun TemplateEditorPage(
 
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
-    SrxScaffold(
-        modifier = Modifier.testTag("page_template_editor"),
-        topBar = {
-            SrxTopAppBar(
-                title = currentTemplate.name,
-                navigationIcon = {
-                    SrxBackButton(onClick = onBack, modifier = Modifier.testTag("template_editor_back_button"))
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            renameInput = currentTemplate.name
-                            renameError = false
-                            showRenameDialog.value = true
-                        },
-                        modifier = Modifier.testTag("template_rename_button"),
-                    ) {
-                        Icon(AppIcons.Edit, contentDescription = stringResource(R.string.common_edit))
+    // 模板不属于某个用户，浏览当前用户的存储目录
+    PageStackHost(
+        stack = browseStack,
+        page = { _, onBrowserBack ->
+            PathBrowserPage(
+                browserRepository = pathBrowserRepo,
+                userId = android.os.Process.myUid() / PER_USER_UID_RANGE,
+                multiSelect = true,
+                allowExclude = true,
+                onBack = onBrowserBack,
+                onPathSelect = {},
+                onPathsSelect = { paths ->
+                    val validPaths = paths.mapNotNull { raw ->
+                        val validation = RedirectConfig.validateRealPathRule(raw)
+                        if (validation is PathValidationResult.Valid) validation.normalized else null
                     }
-                    IconButton(
-                        onClick = { showTemplateDeleteDialog.value = true },
-                        modifier = Modifier.testTag("template_delete_button"),
-                    ) {
-                        Icon(AppIcons.Delete, contentDescription = stringResource(R.string.templates_delete))
+                    if (validPaths.isEmpty()) {
+                        Toast.makeText(context, R.string.rule_config_browser_invalid_path, Toast.LENGTH_SHORT).show()
+                    } else {
+                        val allowedPaths = currentTemplate.allowedRealPaths + validPaths
+                        updateTemplate(currentTemplate.copy(allowedRealPaths = allowedPaths))
+                        if (validPaths.size < paths.size) {
+                            Toast.makeText(context, R.string.rule_config_paths_partially_invalid, Toast.LENGTH_SHORT).show()
+                        }
                     }
+                    onBrowserBack()
                 },
-                scrollBehavior = scrollBehavior,
             )
         },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .padding(horizontal = PAGE_HORIZONTAL_PADDING),
-            contentPadding = PaddingValues(
-                top = padding.calculateTopPadding(),
-                bottom = padding.calculateBottomPadding(),
-            ),
-        ) {
-            item {
-                RuleSectionTitle(
-                    title = stringResource(
-                        R.string.rule_config_section_count,
-                        stringResource(R.string.rule_config_allowed_paths),
-                        currentTemplate.allowedRealPaths.size,
-                    ),
-                )
-            }
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    if (currentTemplate.allowedRealPaths.isEmpty()) {
-                        RuleEmptyRow(stringResource(R.string.rule_config_no_paths))
-                    }
-                    currentTemplate.allowedRealPaths.forEachIndexed { index, path ->
-                        AllowedPathRow(
-                            path = path,
-                            onDelete = {
-                                deleteTarget = TemplateDeleteTarget.Path(index)
-                                showDeleteDialog.value = true
-                            },
-                            modifier = Modifier.testTag("template_allowed_path_item_$index"),
-                        )
-                    }
-                    CardActionRow {
-                        CardActionButton(
-                            icon = AppIcons.Add,
-                            text = stringResource(R.string.rule_config_add_path),
+    ) {
+        SrxScaffold(
+            modifier = Modifier.testTag("page_template_editor"),
+            topBar = {
+                SrxTopAppBar(
+                    title = currentTemplate.name,
+                    navigationIcon = {
+                        SrxBackButton(onClick = onBack, modifier = Modifier.testTag("template_editor_back_button"))
+                    },
+                    actions = {
+                        IconButton(
                             onClick = {
-                                dialogPathInput = ""
-                                pathDialogErrorResId = null
-                                showPathDialog.value = true
+                                renameInput = currentTemplate.name
+                                renameError = false
+                                showRenameDialog.value = true
                             },
-                            modifier = Modifier.testTag("template_add_allowed_path"),
-                        )
+                            modifier = Modifier.testTag("template_rename_button"),
+                        ) {
+                            Icon(AppIcons.Edit, contentDescription = stringResource(R.string.common_edit))
+                        }
+                        IconButton(
+                            onClick = { showTemplateDeleteDialog.value = true },
+                            modifier = Modifier.testTag("template_delete_button"),
+                        ) {
+                            Icon(AppIcons.Delete, contentDescription = stringResource(R.string.templates_delete))
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                )
+            },
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
+                    .padding(horizontal = PAGE_HORIZONTAL_PADDING),
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding(),
+                ),
+            ) {
+                item {
+                    RuleSectionTitle(
+                        title = stringResource(
+                            R.string.rule_config_section_count,
+                            stringResource(R.string.rule_config_allowed_paths),
+                            currentTemplate.allowedRealPaths.size,
+                        ),
+                    )
+                }
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        if (currentTemplate.allowedRealPaths.isEmpty()) {
+                            RuleEmptyRow(stringResource(R.string.rule_config_no_paths))
+                        }
+                        currentTemplate.allowedRealPaths.forEachIndexed { index, path ->
+                            AllowedPathRow(
+                                path = path,
+                                onDelete = {
+                                    deleteTarget = TemplateDeleteTarget.Path(index)
+                                    showDeleteDialog.value = true
+                                },
+                                modifier = Modifier.testTag("template_allowed_path_item_$index"),
+                            )
+                        }
+                        CardActionRow {
+                            CardActionButton(
+                                icon = AppIcons.Add,
+                                text = stringResource(R.string.rule_config_add_path),
+                                onClick = { browseStack.push(TemplateBrowseTarget.Path) },
+                                modifier = Modifier.testTag("template_add_allowed_path"),
+                            )
+                        }
                     }
                 }
-            }
 
-            item {
-                RuleSectionTitle(
-                    title = stringResource(
-                        R.string.rule_config_section_count,
-                        stringResource(R.string.rule_config_path_mappings),
-                        currentTemplate.pathMappings.size,
-                    ),
-                )
-            }
-            item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    if (currentTemplate.pathMappings.isEmpty()) {
-                        RuleEmptyRow(stringResource(R.string.rule_config_no_mappings))
-                    }
-                    currentTemplate.pathMappings.forEachIndexed { index, mapping ->
-                        PathMappingRow(
-                            requestPath = mapping.requestPath,
-                            finalPath = mapping.finalPath,
-                            onDelete = {
-                                deleteTarget = TemplateDeleteTarget.Mapping(index)
-                                showDeleteDialog.value = true
-                            },
-                            modifier = Modifier.testTag("template_mapping_item_$index"),
-                        )
-                    }
-                    CardActionRow {
-                        CardActionButton(
-                            icon = AppIcons.Add,
-                            text = stringResource(R.string.rule_config_add_mapping),
-                            onClick = {
-                                dialogMappingRequestPathInput = ""
-                                dialogMappingFinalPathInput = ""
-                                mappingDialogErrorResId = null
-                                showMappingDialog.value = true
-                            },
-                            modifier = Modifier.testTag("template_add_mapping"),
-                        )
+                item {
+                    RuleSectionTitle(
+                        title = stringResource(
+                            R.string.rule_config_section_count,
+                            stringResource(R.string.rule_config_path_mappings),
+                            currentTemplate.pathMappings.size,
+                        ),
+                    )
+                }
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        if (currentTemplate.pathMappings.isEmpty()) {
+                            RuleEmptyRow(stringResource(R.string.rule_config_no_mappings))
+                        }
+                        currentTemplate.pathMappings.forEachIndexed { index, mapping ->
+                            PathMappingRow(
+                                requestPath = mapping.requestPath,
+                                finalPath = mapping.finalPath,
+                                onDelete = {
+                                    deleteTarget = TemplateDeleteTarget.Mapping(index)
+                                    showDeleteDialog.value = true
+                                },
+                                modifier = Modifier.testTag("template_mapping_item_$index"),
+                            )
+                        }
+                        CardActionRow {
+                            CardActionButton(
+                                icon = AppIcons.Add,
+                                text = stringResource(R.string.rule_config_add_mapping),
+                                onClick = {
+                                    dialogMappingRequestPathInput = ""
+                                    dialogMappingFinalPathInput = ""
+                                    mappingDialogErrorResId = null
+                                    showMappingDialog.value = true
+                                },
+                                modifier = Modifier.testTag("template_add_mapping"),
+                            )
+                        }
                     }
                 }
-            }
 
-            item { Spacer(Modifier.height(PAGE_GROUP_GAP)) }
+                item { Spacer(Modifier.height(PAGE_GROUP_GAP)) }
+            }
         }
     }
 
@@ -408,50 +438,6 @@ private fun TemplateEditorPage(
                     return@TemplateDialogButtonRow false
                 }
                 updateTemplate(currentTemplate.copy(name = name))
-                true
-            },
-        )
-    }
-
-    WindowDialog(
-        show = showPathDialog.value,
-        title = stringResource(R.string.rule_config_add_path),
-        onDismissRequest = {
-            pathDialogErrorResId = null
-            showPathDialog.value = false
-        },
-    ) {
-        RulePathField(
-            value = dialogPathInput,
-            onValueChange = {
-                dialogPathInput = it
-                pathDialogErrorResId = null
-            },
-            label = stringResource(R.string.rule_config_real_path),
-            modifier = Modifier.testTag("template_allowed_path_input"),
-        )
-        pathDialogErrorResId?.let { errorResId ->
-            Spacer(Modifier.height(TEMPLATE_DIALOG_FIELD_SPACING))
-            Text(
-                text = stringResource(errorResId),
-                color = MiuixTheme.colorScheme.error,
-                style = MiuixTheme.textStyles.body2,
-            )
-        }
-        Spacer(Modifier.height(TEMPLATE_DIALOG_BOTTOM_SPACING))
-        TemplateDialogButtonRow(
-            show = showPathDialog,
-            confirmTag = "template_allowed_path_confirm",
-            cancelTag = "template_allowed_path_cancel",
-            onConfirm = {
-                val validation = RedirectConfig.validateRealPathRule(dialogPathInput)
-                if (validation !is PathValidationResult.Valid) {
-                    pathDialogErrorResId = resolvePathValidationErrorResId(validation)
-                    return@TemplateDialogButtonRow false
-                }
-                // 追加到末尾，与同一路径的其他规则去重时以本次添加为准
-                val paths = currentTemplate.allowedRealPaths + validation.normalized
-                updateTemplate(currentTemplate.copy(allowedRealPaths = paths))
                 true
             },
         )
@@ -653,4 +639,10 @@ private fun TemplateDialogButtonRow(
 private sealed class TemplateDeleteTarget {
     data class Path(val index: Int) : TemplateDeleteTarget()
     data class Mapping(val index: Int) : TemplateDeleteTarget()
+}
+
+private const val PER_USER_UID_RANGE = 100000
+
+private enum class TemplateBrowseTarget {
+    Path,
 }
