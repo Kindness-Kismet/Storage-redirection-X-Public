@@ -129,6 +129,9 @@ public final class FileMonitorHooks extends Hooker {
         install(provider, receiver.getDeclaredMethod("onReceive", Context.class, Intent.class),
             "scan_file");
       }
+      // 下载服务没有 FUSE 就绪入口，在 Provider 挂载时刷新一次已加载库的 PLT Hook
+      if (isDownloads)
+        Hooker.refreshProviderLibraries();
       Log.i(TAG,
           "provider observer installed: " + provider.getClass().getName()
               + ", FUSE entries=" + fuseHooks);

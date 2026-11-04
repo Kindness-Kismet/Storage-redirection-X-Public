@@ -126,13 +126,9 @@ impl InterceptHub {
         ] {
             let _ = srx_hook::add_ignore(image);
         }
-        // 媒体服务在 FUSE 启动后显式刷新，避免动态加载回调与 Java Hook 重入。
-        let mode = if policy::is_media_provider_package(&self.get_package_name()) {
-            srx_hook::HookMode::Manual
-        } else {
-            srx_hook::HookMode::Automatic
-        };
-        let errno = srx_hook::init(mode, false);
+        // 代写进程统一手动刷新，由 Provider 就绪时触发，不启动后台监视线程：
+        // NeoZygisk 伪装常驻模块映射时代码段会短暂不可执行，后台线程会因此崩溃。
+        let errno = srx_hook::init(srx_hook::HookMode::Manual, false);
         if !errno.is_ok() {
             log::warn!("srx_hook init failed err={:?}", errno);
             return false;
