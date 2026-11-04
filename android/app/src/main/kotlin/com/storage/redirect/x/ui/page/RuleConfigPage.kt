@@ -79,6 +79,7 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 // 页面间距：列表横向边距，区块间距，行内边距，弹窗字段间距与提示卡片间距
 private val RULE_CONFIG_ITEM_SPACING = 4.dp
@@ -356,8 +357,10 @@ fun RuleConfigPage(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .overScrollVertical()
                         .nestedScroll(scrollBehavior.nestedScrollConnection)
                         .padding(horizontal = PAGE_HORIZONTAL_PADDING),
+                    overscrollEffect = null,
                     contentPadding = PaddingValues(
                         top = padding.calculateTopPadding(),
                         bottom = padding.calculateBottomPadding(),

@@ -78,6 +78,7 @@ import top.yukonga.miuix.kmp.basic.SearchBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 // 条目卡片：应用 + 时间 / 来源动作 + 结果 / 路径，三行固定结构
 private val FILE_MONITOR_CARD_HORIZONTAL_PADDING = 16.dp
@@ -249,7 +250,8 @@ fun FileMonitorPage(
             return@SrxScaffold
         }
         LazyColumn(
-            modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier = Modifier.fillMaxSize().overScrollVertical().nestedScroll(scrollBehavior.nestedScrollConnection),
+            overscrollEffect = null,
             contentPadding = PaddingValues(
                 start = PAGE_HORIZONTAL_PADDING,
                 top = topPadding + PAGE_CONTENT_TOP_PADDING,

@@ -43,6 +43,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 private val DIRECTORY_GROUP_CORNER_RADIUS = 16.dp
 private val DIRECTORY_ROW_MIN_HEIGHT = 60.dp
@@ -62,7 +63,8 @@ internal fun BrowserDirectoryList(state: PathBrowserState, topPadding: Dp, botto
         }
         state.hasLoadError || entries.isEmpty() -> BrowserEmptyState(state, topPadding, bottomPadding)
         else -> LazyColumn(
-            modifier = Modifier.fillMaxSize().testTag("browser_directories"),
+            modifier = Modifier.fillMaxSize().overScrollVertical().testTag("browser_directories"),
+            overscrollEffect = null,
             state = listState,
             contentPadding = PaddingValues(top = topPadding, bottom = bottomPadding),
         ) {

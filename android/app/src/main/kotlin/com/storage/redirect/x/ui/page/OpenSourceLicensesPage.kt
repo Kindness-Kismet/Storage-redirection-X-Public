@@ -28,6 +28,7 @@ import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 // 开源组件信息
 data class OpenSourceLibrary(
@@ -140,8 +141,9 @@ fun OpenSourceLicensesPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), overscrollEffect = null)
         ) {
             Spacer(Modifier.height(innerPadding.calculateTopPadding() + PAGE_CONTENT_TOP_PADDING))
 

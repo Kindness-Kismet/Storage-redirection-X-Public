@@ -45,6 +45,7 @@ import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 private const val PROJECT_REPOSITORY_URL = "https://github.com/Kindness-Kismet/Storage-redirection-X-Public"
 
@@ -72,7 +73,8 @@ fun AboutPage(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .overScrollVertical()
+                    .verticalScroll(rememberScrollState(), overscrollEffect = null)
                     .padding(horizontal = PAGE_HORIZONTAL_PADDING)
                     .padding(top = ABOUT_HERO_TOP_PADDING),
                 verticalArrangement = Arrangement.spacedBy(PAGE_GROUP_GAP),

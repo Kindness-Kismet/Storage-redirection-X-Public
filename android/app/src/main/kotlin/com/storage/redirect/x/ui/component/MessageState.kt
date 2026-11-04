@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 // 全页状态在可用内容区居中，小窗口和大字体下仍可滚动。
 @Composable
@@ -38,7 +39,8 @@ fun PageMessageState(
         modifier = modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .verticalScroll(rememberScrollState())
+            .overScrollVertical()
+            .verticalScroll(rememberScrollState(), overscrollEffect = null)
             .padding(horizontal = 24.dp, vertical = 40.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,

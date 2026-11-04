@@ -56,6 +56,7 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 // 设备信息数值最大宽度，超出换行保持右对齐
 private val HOME_INFO_VALUE_MAX_WIDTH = 180.dp
@@ -122,8 +123,9 @@ fun HomePage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), overscrollEffect = null)
         ) {
             Spacer(Modifier.height(topPadding + PAGE_CONTENT_TOP_PADDING))
 

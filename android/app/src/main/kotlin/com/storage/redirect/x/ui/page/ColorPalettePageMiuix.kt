@@ -72,6 +72,7 @@ import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 @Composable
 fun ColorPalettePageMiuix(
@@ -103,8 +104,10 @@ fun ColorPalettePageMiuix(
         LazyColumn(
             modifier = Modifier
                 .fillMaxHeight()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
                 .padding(horizontal = PAGE_HORIZONTAL_PADDING),
+            overscrollEffect = null,
             contentPadding = innerPadding,
         ) {
             item {

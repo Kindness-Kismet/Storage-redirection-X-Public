@@ -58,6 +58,7 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 private val TEMPLATE_CARD_HORIZONTAL_PADDING = 16.dp
 private val TEMPLATE_CARD_VERTICAL_PADDING = 14.dp
@@ -201,8 +202,10 @@ private fun TemplateListContent(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .padding(horizontal = PAGE_HORIZONTAL_PADDING),
+                overscrollEffect = null,
                 contentPadding = PaddingValues(
                     top = padding.calculateTopPadding(),
                     bottom = padding.calculateBottomPadding(),
@@ -314,8 +317,10 @@ private fun TemplateEditorPage(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .padding(horizontal = PAGE_HORIZONTAL_PADDING),
+                overscrollEffect = null,
                 contentPadding = PaddingValues(
                     top = padding.calculateTopPadding(),
                     bottom = padding.calculateBottomPadding(),
