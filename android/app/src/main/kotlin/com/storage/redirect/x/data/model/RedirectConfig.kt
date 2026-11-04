@@ -146,7 +146,7 @@ data class RedirectConfig(
         // 后端始终恢复真实 Android 目录，视为隐含的允许规则
         private const val ANDROID_DIRECTORY = "Android"
 
-        // 标准化允许路径规则：支持 ! 与 ^ 前缀和通配符
+        // 标准化允许路径规则：支持 ! 与 ^ 前缀
         fun normalizeAllowedPath(raw: String): String? {
             val value = raw.trim()
             if (value.isEmpty()) return null
@@ -209,7 +209,7 @@ data class RedirectConfig(
             return normalizeRelativePath(value, privateOwner)
         }
 
-        // 校验真实路径规则：允许 ! 与 ^ 前缀和通配符
+        // 校验真实路径规则：允许 ! 与 ^ 前缀
         fun validateAllowedPath(raw: String): PathValidationResult {
             val rawValue = raw.trim()
             if (rawValue.isEmpty()) {
@@ -230,10 +230,11 @@ data class RedirectConfig(
             return PathValidationResult.Valid(mode.prefix + body)
         }
 
-        // 后端始终恢复真实 Android 目录，只有 Android/media 下的排除与只读规则有意义
+        // 界面添加的规则：不接受通配符；后端始终恢复真实 Android 目录，只有 Android/media 下的排除与只读有意义
         fun validateRealPathRule(raw: String): PathValidationResult {
             val validation = validateAllowedPath(raw)
             if (validation !is PathValidationResult.Valid) return validation
+            if (containsWildcard(validation.normalized)) return PathValidationResult.WildcardNotAllowed
             val mode = RealPathRuleMode.of(validation.normalized)
             val segments = validation.normalized.drop(mode.prefix.length).split('/')
             if (!segments[0].equals(ANDROID_DIRECTORY, ignoreCase = true)) return validation

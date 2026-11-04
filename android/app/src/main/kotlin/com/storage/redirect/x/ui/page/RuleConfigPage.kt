@@ -119,7 +119,6 @@ fun RuleConfigPage(
     var pathDialogIndex by remember { mutableStateOf<Int?>(null) }
     var dialogPathInput by remember { mutableStateOf("") }
     var pathDialogErrorResId by remember { mutableStateOf<Int?>(null) }
-    var showAllowedPathHint by remember { mutableStateOf(false) }
 
     // 映射弹窗状态
     val showMappingDialog = remember { mutableStateOf(false) }
@@ -422,7 +421,7 @@ fun RuleConfigPage(
                         }
                     }
 
-                    // 允许访问路径：规则说明收进标题右侧 ⓘ，添加与浏览固定在卡片底部
+                    // 允许访问路径：添加入口固定在卡片底部
                     item {
                         RuleSectionTitle(
                             title = stringResource(
@@ -430,10 +429,8 @@ fun RuleConfigPage(
                                 stringResource(R.string.rule_config_allowed_paths),
                                 allowedPaths.size,
                             ),
-                            onInfo = { showAllowedPathHint = !showAllowedPathHint },
                         )
                     }
-                    item { AllowedPathHintCard(showAllowedPathHint) }
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             if (allowedPaths.isEmpty()) {
@@ -614,7 +611,7 @@ fun RuleConfigPage(
                     }
 
                     PathValidationResult.WildcardNotAllowed -> {
-                        pathDialogErrorResId = R.string.rule_config_error_mapping_wildcard
+                        pathDialogErrorResId = R.string.rule_config_error_wildcard
                         false
                     }
 

@@ -1,10 +1,5 @@
 package com.storage.redirect.x.ui.page
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -35,11 +29,9 @@ import com.storage.redirect.x.R
 import com.storage.redirect.x.data.model.PathValidationResult
 import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.ui.component.PAGE_GROUP_GAP
-import com.storage.redirect.x.ui.component.PAGE_ITEM_GAP
 import com.storage.redirect.x.ui.component.STATUS_READONLY_COLOR
 import com.storage.redirect.x.ui.component.StatusTag
 import com.storage.redirect.x.ui.icon.AppIcons
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import com.storage.redirect.x.ui.component.SrxIconButton as IconButton
@@ -51,49 +43,14 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 private val RULE_CARD_CONTENT_PADDING = 16.dp
 private val RULE_CARD_ACTION_ROW_HEIGHT = 60.dp
 
-// 区块标题，可带右侧说明按钮
+// 区块标题
 @Composable
-internal fun RuleSectionTitle(title: String, onInfo: (() -> Unit)? = null) {
+internal fun RuleSectionTitle(title: String) {
     Spacer(Modifier.height(PAGE_GROUP_GAP))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        SmallTitle(
-            text = title,
-            modifier = Modifier.weight(1f),
-            insideMargin = PaddingValues(horizontal = RULE_CARD_CONTENT_PADDING, vertical = 8.dp),
-        )
-        onInfo?.let {
-            Icon(
-                AppIcons.Info,
-                contentDescription = stringResource(R.string.rule_config_allowed_paths_rule_hint_desc),
-                tint = MiuixTheme.colorScheme.primary,
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = it)
-                    .padding(6.dp)
-                    .size(18.dp),
-            )
-        }
-    }
-}
-
-// 允许访问路径的规则说明，由标题右侧 ⓘ 展开
-@Composable
-internal fun AllowedPathHintCard(isVisible: Boolean) {
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = expandVertically() + fadeIn(),
-        exit = shrinkVertically() + fadeOut(),
-    ) {
-        Card(modifier = Modifier.fillMaxWidth().padding(bottom = PAGE_ITEM_GAP)) {
-            Text(
-                text = stringResource(R.string.rule_config_allowed_paths_rule_hint),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.padding(RULE_CARD_CONTENT_PADDING),
-            )
-        }
-    }
+    SmallTitle(
+        text = title,
+        insideMargin = PaddingValues(horizontal = RULE_CARD_CONTENT_PADDING, vertical = 8.dp),
+    )
 }
 
 // 排除与只读规则去掉前缀，分别改用红色与黄色标签标出
@@ -246,7 +203,7 @@ internal fun resolvePathValidationErrorResId(result: PathValidationResult): Int 
         PathValidationResult.Traversal -> R.string.rule_config_error_traversal
         PathValidationResult.AndroidDataPath -> R.string.rule_config_error_android_prefix
         PathValidationResult.AndroidAlwaysAllowed -> R.string.rule_config_error_android_always_allowed
-        PathValidationResult.WildcardNotAllowed -> R.string.rule_config_error_mapping_wildcard
+        PathValidationResult.WildcardNotAllowed -> R.string.rule_config_error_wildcard
         PathValidationResult.ExclusionNotAllowed -> R.string.rule_config_error_mapping_exclusion
         is PathValidationResult.Valid -> R.string.rule_config_error_empty
     }

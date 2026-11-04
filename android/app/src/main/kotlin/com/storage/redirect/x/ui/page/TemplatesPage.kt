@@ -233,7 +233,6 @@ private fun TemplateEditorPage(
     var pathDialogIndex by remember { mutableStateOf<Int?>(null) }
     var dialogPathInput by remember { mutableStateOf("") }
     var pathDialogErrorResId by remember { mutableStateOf<Int?>(null) }
-    var showAllowedPathHint by remember { mutableStateOf(false) }
 
     val showMappingDialog = remember { mutableStateOf(false) }
     var mappingDialogIndex by remember { mutableStateOf<Int?>(null) }
@@ -298,10 +297,8 @@ private fun TemplateEditorPage(
                         stringResource(R.string.rule_config_allowed_paths),
                         currentTemplate.allowedRealPaths.size,
                     ),
-                    onInfo = { showAllowedPathHint = !showAllowedPathHint },
                 )
             }
-            item { AllowedPathHintCard(showAllowedPathHint) }
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     if (currentTemplate.allowedRealPaths.isEmpty()) {
