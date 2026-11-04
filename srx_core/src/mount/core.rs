@@ -276,18 +276,16 @@ impl MountPlanner {
     }
 
     // bind 重挂会整体替换挂载标志，需带上现有的 nosuid/nodev 等标志避免被清除
-    pub(super) fn remount_readonly(&self, target: &str) -> bool {
+    // 目标不是挂载根时返回 EINVAL 且不记日志，由调用方改为先自绑定
+    pub(super) fn remount_readonly(&self, target: &str) -> Result<(), i32> {
         let Ok(c_target) = CString::new(target) else {
-            return false;
+            return Err(libc::EILSEQ);
         };
         let mut st = std::mem::MaybeUninit::<libc::statvfs>::uninit();
         if unsafe { libc::statvfs(c_target.as_ptr(), st.as_mut_ptr()) } != 0 {
-            log::warn!(
-                "readonly statvfs failed target={} errno={}",
-                target,
-                last_errno()
-            );
-            return false;
+            let errno = last_errno();
+            log::warn!("readonly statvfs failed target={} errno={}", target, errno);
+            return Err(errno);
         }
         let preserved_flags = unsafe { st.assume_init() }.f_flag
             & (libc::ST_NOSUID
@@ -307,15 +305,18 @@ impl MountPlanner {
             )
         };
         if ret != 0 {
-            log::warn!(
-                "readonly remount failed target={} errno={} {}",
-                target,
-                last_errno(),
-                errno_text()
-            );
-            return false;
+            let errno = last_errno();
+            if errno != libc::EINVAL {
+                log::warn!(
+                    "readonly remount failed target={} errno={} {}",
+                    target,
+                    errno,
+                    errno_text()
+                );
+            }
+            return Err(errno);
         }
-        true
+        Ok(())
     }
 
     pub(super) fn detach_mount(&self, target: &str) -> bool {
