@@ -384,6 +384,7 @@ fn handle_child_process(request: &CompanionMountRequest, sock: c_int) -> bool {
         mount_mgr.apply_sdcard_redirect(
             &request.allowed_real_paths,
             &request.excluded_real_paths,
+            &request.readonly_real_paths,
             &request.path_mappings,
         )
     };

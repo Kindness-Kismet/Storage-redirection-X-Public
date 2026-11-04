@@ -178,6 +178,8 @@ pub fn rows(path: &Path, before: i64, after: i64, limit: usize) -> io::Result<Ve
                     "CREATE"
                 } else if op.ends_with("update") {
                     "UPDATE"
+                } else if op.ends_with("delete") {
+                    "DELETE"
                 } else {
                     "OPEN"
                 };

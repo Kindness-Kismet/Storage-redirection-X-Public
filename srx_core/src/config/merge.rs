@@ -240,6 +240,9 @@ fn is_user_profile_equivalent(left: &UserProfile, right: &UserProfile) -> bool {
     if left.excluded_real_paths != right.excluded_real_paths {
         return false;
     }
+    if left.readonly_real_paths != right.readonly_real_paths {
+        return false;
+    }
 
     let left_mappings = normalize_mappings(&left.path_mappings);
     let right_mappings = normalize_mappings(&right.path_mappings);

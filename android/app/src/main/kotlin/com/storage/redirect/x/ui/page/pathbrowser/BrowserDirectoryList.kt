@@ -106,7 +106,8 @@ private fun BrowserEmptyState(state: PathBrowserState, topPadding: Dp, bottomPad
             when {
                 state.hasLoadError -> BrowserButton(stringResource(R.string.common_retry), { state.reloadKey++ })
                 state.query.isNotBlank() -> BrowserButton(stringResource(R.string.browser_clear_search), { state.query = "" })
-                state.multiSelect && state.canSelect(state.currentPath) -> BrowserButton(
+                state.multiSelect && state.canSelect(state.currentPath) &&
+                    state.selectionOf(state.currentPath) != DirectorySelection.Covered -> BrowserButton(
                     stringResource(
                         if (state.currentPath in state.selectedPaths) R.string.browser_deselect_current
                         else R.string.rule_config_browser_use_current,
@@ -122,7 +123,7 @@ private fun BrowserEmptyState(state: PathBrowserState, topPadding: Dp, bottomPad
 @Composable
 private fun BrowserDirectoryRow(state: PathBrowserState, path: String, isFirst: Boolean, isLast: Boolean) {
     val colors = browserColors()
-    val isSelected = state.multiSelect && path in state.selectedPaths
+    val isSelected = state.multiSelect && state.selectionOf(path) == DirectorySelection.Selected
     val isEnabled = state.canSelect(path)
     val top = if (isFirst) DIRECTORY_GROUP_CORNER_RADIUS else 0.dp
     val bottom = if (isLast) DIRECTORY_GROUP_CORNER_RADIUS else 0.dp
@@ -182,7 +183,7 @@ private fun DirectoryTrailing(state: PathBrowserState, path: String, isEnabled: 
     }
     if (state.multiSelect) {
         BrowserCheckbox(
-            isSelected = path in state.selectedPaths,
+            selection = state.selectionOf(path),
             description = stringResource(R.string.browser_select_directory, path.substringAfterLast('/')),
             onClick = { state.togglePath(path) },
             color = state.accentColor(),

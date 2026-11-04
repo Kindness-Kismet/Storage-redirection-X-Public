@@ -18,6 +18,7 @@ pub struct UserProfile {
     pub is_enabled: bool,
     pub allowed_real_paths: Vec<String>,
     pub excluded_real_paths: Vec<String>,
+    pub readonly_real_paths: Vec<String>,
     pub path_mappings: Vec<PathMapping>,
 }
 

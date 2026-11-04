@@ -12,6 +12,7 @@ pub(super) fn build_companion_request_payload(
     redirect_target: &str,
     allowed_real_paths: &[String],
     excluded_real_paths: &[String],
+    readonly_real_paths: &[String],
     path_mappings: &[PathMapping],
     is_mapping_mode_only: bool,
 ) -> String {
@@ -31,6 +32,7 @@ pub(super) fn build_companion_request_payload(
         "redirect_target": redirect_target,
         "allowed_real_paths": allowed_real_paths,
         "excluded_real_paths": excluded_real_paths,
+        "readonly_real_paths": readonly_real_paths,
         "mapping_mode_only": is_mapping_mode_only,
         "path_mappings": mappings,
     });

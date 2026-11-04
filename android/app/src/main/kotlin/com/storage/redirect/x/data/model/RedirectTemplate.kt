@@ -14,10 +14,7 @@ data class RedirectTemplate(
     val updatedAt: Long = createdAt,
 ) {
     fun normalized(): RedirectTemplate {
-        val cleanedPaths = allowedRealPaths
-            .mapNotNull { RedirectConfig.normalizeAllowedPath(it) }
-            .toSortedSet()
-            .toList()
+        val cleanedPaths = RedirectConfig.normalizeAllowedPaths(allowedRealPaths)
         val mappingByRequest = linkedMapOf<String, StoragePathMapping>()
         for (mapping in pathMappings) {
             val requestPath = RedirectConfig.normalizeMappingPath(mapping.requestPath) ?: continue

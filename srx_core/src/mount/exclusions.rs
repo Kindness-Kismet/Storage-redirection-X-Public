@@ -1,4 +1,4 @@
-use super::rules::{REAL_PATH_WILDCARD_EXPAND_LIMIT, has_path_wildcard, reduce_real_path_rules};
+use super::rules::reduce_real_path_rules;
 use super::{MountPlanner, PrimaryMountFailure};
 use crate::platform::paths;
 
@@ -10,37 +10,15 @@ impl MountPlanner {
         storage_path: &str,
         redirect_backend: &str,
     ) -> bool {
-        let mut excluded_paths = Vec::new();
         let storage_prefix = format!("{}/", storage_path);
-        for rule in excluded_rules {
-            let resolved =
-                self.resolve_user_path(&self.resolve_placeholders(&self.normalize_path(rule)));
-            if !resolved.starts_with(&storage_prefix) || paths::has_unsafe_segments(&resolved) {
-                continue;
-            }
-            if has_path_wildcard(&resolved) {
-                let expanded =
-                    Self::expand_real_path_wildcard(&resolved, storage_path, storage_path);
-                if expanded.len() >= REAL_PATH_WILDCARD_EXPAND_LIMIT {
-                    log::warn!(
-                        "exclude wildcard limit path={} limit={}",
-                        resolved,
-                        REAL_PATH_WILDCARD_EXPAND_LIMIT
-                    );
-                }
-                excluded_paths.extend(expanded);
-            } else {
-                excluded_paths.push(resolved);
-            }
-        }
+        let mut excluded_paths =
+            self.expand_storage_view_rules(excluded_rules, storage_path, "exclude");
         // 未被真实目录覆盖的路径已位于沙盒，只处理与恢复挂载重叠的排除项。
         excluded_paths.retain(|excluded| {
             restored_real_paths.iter().any(|restored| {
                 paths::matches(restored, excluded, true) || paths::matches(excluded, restored, true)
             })
         });
-        excluded_paths.sort();
-        excluded_paths.dedup();
         for excluded in reduce_real_path_rules(excluded_paths) {
             let relative = &excluded[storage_prefix.len()..];
             let source = paths::join(redirect_backend, relative);

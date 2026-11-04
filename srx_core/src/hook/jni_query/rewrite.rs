@@ -2,7 +2,9 @@ use super::super::stats::InterceptHub;
 use super::types::{FILE_SCHEME_PREFIX, STORAGE_PREFIXES};
 use crate::config::SettingsHub;
 use crate::platform::ANDROID_USER_ID_OFFSET;
-use crate::redirect::{policy, process_redirect_path};
+use crate::redirect::{
+    CallerRealPathMatch, classify_path_by_caller_real_paths, policy, process_redirect_path,
+};
 use std::ffi::CString;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -27,8 +29,14 @@ pub(crate) fn rewrite_cursor_storage_path_for_caller(
     if caller_package.is_empty() {
         return None;
     }
+    // 只读目录的真实条目在沙盒中没有副本，不能当作缺失目标隐藏
+    let can_hide_rows = !preserve_missing_target
+        && !matches!(
+            classify_path_by_caller_real_paths(path_text, &caller_package, caller_uid),
+            CallerRealPathMatch::ReadOnly
+        );
     with_caller(&caller_package, caller_uid, || {
-        rewrite_cursor_storage_path_with_mode(original_text, !preserve_missing_target)
+        rewrite_cursor_storage_path_with_mode(original_text, can_hide_rows)
     })
 }
 
@@ -55,6 +63,32 @@ pub(crate) fn resolve_redirect_target_for_caller(path: &str, caller_uid: i32) ->
         return None;
     }
     Some(decision.new_path)
+}
+
+// 只读目录中真实存在的文件不允许代写删改；应用经代写写入沙盒的文件不受限制
+pub(crate) fn is_readonly_path_for_caller(path: &str, caller_uid: i32) -> bool {
+    crate::hook::refresh_runtime_config_throttled();
+    if caller_uid < 0 {
+        return false;
+    }
+    let caller_package = resolve_caller_package(caller_uid, path);
+    if caller_package.is_empty()
+        || !matches!(
+            classify_path_by_caller_real_paths(path, &caller_package, caller_uid),
+            CallerRealPathMatch::ReadOnly
+        )
+    {
+        return false;
+    }
+    // 命中映射时写入改到公共目录，不受只读限制
+    let hub = InterceptHub::instance();
+    let decision = with_caller(&caller_package, caller_uid, || {
+        process_redirect_path(hub, path)
+    });
+    if decision.is_redirect() && !decision.new_path.contains("/Android/") {
+        return false;
+    }
+    path_exists_by_syscall(path)
 }
 
 // 旧扫描广播没有发送方身份，只接受唯一命中映射请求路径的应用，并换算到本进程所在用户

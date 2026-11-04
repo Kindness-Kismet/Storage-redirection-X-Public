@@ -14,7 +14,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.ui.component.PillButton
+import com.storage.redirect.x.ui.component.STATUS_READONLY_COLOR
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.CheckboxDefaults
@@ -39,14 +41,22 @@ internal fun browserColors(): BrowserColors = MiuixTheme.colorScheme.let {
     )
 }
 
-// 排除模式下强调色与选中底色整体换成错误色
+// 排除模式换成错误色，只读模式换成黄色
 @Composable
-internal fun PathBrowserState.accentColor(): Color =
-    if (isExcludeMode) browserColors().error else browserColors().primary
+internal fun PathBrowserState.accentColor(): Color = when (ruleMode) {
+    RealPathRuleMode.Exclude -> browserColors().error
+    RealPathRuleMode.ReadOnly -> STATUS_READONLY_COLOR
+    RealPathRuleMode.Allow -> browserColors().primary
+}
 
 @Composable
-internal fun PathBrowserState.selectedRowColor(): Color =
-    if (isExcludeMode) browserColors().errorSelected else browserColors().selected
+internal fun PathBrowserState.selectedRowColor(): Color = when (ruleMode) {
+    RealPathRuleMode.Exclude -> browserColors().errorSelected
+    RealPathRuleMode.ReadOnly -> STATUS_READONLY_COLOR.copy(alpha = READONLY_SELECTED_ALPHA)
+    RealPathRuleMode.Allow -> browserColors().selected
+}
+
+private const val READONLY_SELECTED_ALPHA = 0.16f
 
 @Composable
 internal fun BrowserText(
@@ -80,7 +90,7 @@ internal fun BrowserButton(
 
 @Composable
 internal fun BrowserCheckbox(
-    isSelected: Boolean,
+    selection: DirectorySelection,
     description: String,
     onClick: () -> Unit,
     color: Color,
@@ -88,9 +98,14 @@ internal fun BrowserCheckbox(
 ) {
     Box(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp), Alignment.Center) {
         Checkbox(
-            state = if (isSelected) ToggleableState.On else ToggleableState.Off,
+            state = when (selection) {
+                DirectorySelection.Selected, DirectorySelection.Covered -> ToggleableState.On
+                DirectorySelection.Partial -> ToggleableState.Indeterminate
+                DirectorySelection.None -> ToggleableState.Off
+            },
             onClick = onClick,
             modifier = modifier.semantics { contentDescription = description },
+            enabled = selection != DirectorySelection.Covered,
             colors = CheckboxDefaults.checkboxColors(checkedBackgroundColor = color),
         )
     }

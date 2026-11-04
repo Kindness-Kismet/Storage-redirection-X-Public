@@ -8,6 +8,7 @@ impl MountPlanner {
         &mut self,
         allowed_real_paths: &[String],
         excluded_real_paths: &[String],
+        readonly_real_paths: &[String],
         path_mappings: &[PathMapping],
     ) -> bool {
         let resolved_target_storage =
@@ -29,12 +30,13 @@ impl MountPlanner {
         log::info!("redirect target={}", resolved_target_storage);
         log::debug!("redirect backend={}", resolved_target);
         log::info!(
-            "mount args pkg={} uid={} user={} allow={} excl={} map={}",
+            "mount args pkg={} uid={} user={} allow={} excl={} ro={} map={}",
             self.package_name,
             self.app_uid,
             self.user_id,
             allowed_real_paths.len(),
             excluded_real_paths.len(),
+            readonly_real_paths.len(),
             path_mappings.len()
         );
 
@@ -279,6 +281,10 @@ impl MountPlanner {
                 Some(&mut is_any_applied),
             );
             let _ = is_any_applied;
+        }
+
+        if !self.apply_readonly_real_paths(readonly_real_paths, &storage_path) {
+            return false;
         }
 
         log::info!("redirect done");

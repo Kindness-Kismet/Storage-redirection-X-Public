@@ -69,10 +69,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-quality-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          # target 内的 CMake 缓存记录检出绝对路径，键需区分仓库，避免改名或换仓库后恢复不兼容的缓存
+          key: cargo-quality-${{ runner.os }}-${{ runner.arch }}-${{ github.repository }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            cargo-quality-${{ runner.os }}-${{ runner.arch }}-
-            cargo-${{ runner.os }}-${{ runner.arch }}-
+            cargo-quality-${{ runner.os }}-${{ runner.arch }}-${{ github.repository }}-
 
       - name: 安装主机编译工具
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build

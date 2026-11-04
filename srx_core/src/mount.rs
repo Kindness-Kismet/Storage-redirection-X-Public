@@ -4,6 +4,7 @@ mod apply;
 mod core;
 mod exclusions;
 mod map;
+mod readonly;
 mod rules;
 
 pub struct MountPlanner {

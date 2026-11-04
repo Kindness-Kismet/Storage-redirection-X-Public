@@ -110,6 +110,12 @@ public final class FileMonitorHooks extends Hooker {
           } else if ((name.equals("insert") || name.equals("update")) && p.length > 1
               && p[0] == Uri.class && p[1] == ContentValues.class) {
             install(provider, method, (isMedia ? "media_" : "download_") + name);
+          } else if (isMedia && name.equals("delete") && p.length == 3 && p[0] == Uri.class
+              && (p[1] == String.class || p[1] == Bundle.class)) {
+            install(provider, method, "media_delete");
+          } else if (isMedia && name.equals("openFile") && p.length >= 2 && p[0] == Uri.class
+              && p[1] == String.class) {
+            install(provider, method, "media_open");
           }
         }
       }
@@ -188,6 +194,11 @@ public final class FileMonitorHooks extends Hooker {
     }
     if (kind.equals("scan_file"))
       return scanFile(args);
+    // 只读保护的 delete 与 open 需在通用 media_ 分支之前分发
+    if (kind.equals("media_delete"))
+      return guardedDelete(args);
+    if (kind.equals("media_open"))
+      return guardedOpen(args);
     if (kind.startsWith("media_") || kind.startsWith("download_"))
       return providerOperation(args);
     Object result;
@@ -314,11 +325,69 @@ public final class FileMonitorHooks extends Hooker {
       values.put("_data", target);
   }
 
+  // isReadOnlyPath 只对真实存在的只读文件返回 true，应用经代写落在沙盒的文件不受限制
+  private boolean isReadOnly(String path, int uid) {
+    if (!Hooker.isReadOnlyPath(path, uid))
+      return false;
+    emit(uid, path, kind, 30);
+    return true;
+  }
+
+  // 改名、移动或移入回收站（改名为 .trashed- 前缀）都会改写只读目录中的真实文件
+  private boolean isReadOnlyMove(Object[] args, int uid) {
+    ContentValues values = (ContentValues) args[2];
+    if (values == null
+        || !(values.containsKey("_data") || values.containsKey("relative_path")
+            || values.containsKey("_display_name") || values.containsKey("is_trashed")))
+      return false;
+    for (String path : paths((Uri) args[1], args, 3)) {
+      if (isReadOnly(path, uid))
+        return true;
+    }
+    return false;
+  }
+
+  // 任一命中行位于只读目录时整体拒绝，避免批量删除只删掉一部分
+  private Object guardedDelete(Object[] args) throws Throwable {
+    int uid = Binder.getCallingUid();
+    if (uid == android.os.Process.myUid() || INSIDE_PROVIDER.get())
+      return callBackup(args);
+    INSIDE_PROVIDER.set(true);
+    try {
+      for (String path : paths((Uri) args[1], args, 2)) {
+        if (isReadOnly(path, uid))
+          return 0;
+      }
+      return callBackup(args);
+    } finally {
+      INSIDE_PROVIDER.set(false);
+    }
+  }
+
+  // 只读目录中的已有文件仅允许只读打开，拒绝方式与系统无权访问时一致
+  private Object guardedOpen(Object[] args) throws Throwable {
+    int uid = Binder.getCallingUid();
+    String mode = (String) args[2];
+    if (uid == android.os.Process.myUid() || mode == null || mode.indexOf('w') < 0)
+      return callBackup(args);
+    for (String path : paths((Uri) args[1], null, 0)) {
+      if (isReadOnly(path, uid))
+        throw new java.io.FileNotFoundException("read-only: " + path);
+    }
+    return callBackup(args);
+  }
+
   private Object providerOperation(Object[] args) throws Throwable {
     int uid = Binder.getCallingUid();
-    if (kind.startsWith("media_") && uid != android.os.Process.myUid())
+    boolean isForeignMedia = kind.startsWith("media_") && uid != android.os.Process.myUid();
+    if (isForeignMedia)
       redirectDataPath((ContentValues) args[2], uid);
-    if (uid == android.os.Process.myUid() || !isEnabled || INSIDE_PROVIDER.get())
+    if (uid == android.os.Process.myUid() || INSIDE_PROVIDER.get())
+      return callBackup(args);
+    // 插入只读目录无需拦截：代写的文件与父目录由原生 Hook 落到调用方沙盒
+    if (isForeignMedia && kind.equals("media_update") && isReadOnlyMove(args, uid))
+      return 0;
+    if (!isEnabled)
       return callBackup(args);
     INSIDE_PROVIDER.set(true);
     try {
@@ -326,11 +395,11 @@ public final class FileMonitorHooks extends Hooker {
       ContentValues values = (ContentValues) args[2];
       ArrayList<String> before = new ArrayList<>();
       if (kind.endsWith("update"))
-        before = paths(uri, args);
+        before = paths(uri, args, 3);
       Object result = callBackup(args);
       try {
         if (kind.endsWith("insert") && result instanceof Uri) {
-          ArrayList<String> inserted = paths((Uri) result, null);
+          ArrayList<String> inserted = paths((Uri) result, null, 0);
           if (inserted.isEmpty() && values != null) {
             String requested = values.getAsString("_data");
             if (requested == null && kind.equals("download_insert")) {
@@ -356,19 +425,21 @@ public final class FileMonitorHooks extends Hooker {
     }
   }
 
-  private ArrayList<String> paths(Uri uri, Object[] args) {
+  // selectionIndex 为 args 中选择条件或 Bundle 的位置，insert/update 与 delete 的参数布局不同
+  private ArrayList<String> paths(Uri uri, Object[] args, int selectionIndex) {
     ArrayList<String> paths = new ArrayList<>();
     String selection = null;
     String[] selectionArgs = null;
-    if (args != null && args.length > 3) {
-      if (args[3] instanceof Bundle) {
-        Bundle b = (Bundle) args[3];
+    if (args != null && args.length > selectionIndex) {
+      Object condition = args[selectionIndex];
+      if (condition instanceof Bundle) {
+        Bundle b = (Bundle) condition;
         selection = b.getString("android:query-arg-sql-selection");
         selectionArgs = b.getStringArray("android:query-arg-sql-selection-args");
-      } else if (args[3] instanceof String) {
-        selection = (String) args[3];
-        if (args.length > 4)
-          selectionArgs = (String[]) args[4];
+      } else if (condition instanceof String) {
+        selection = (String) condition;
+        if (args.length > selectionIndex + 1)
+          selectionArgs = (String[]) args[selectionIndex + 1];
       }
     }
     try (Cursor cursor =
@@ -391,7 +462,7 @@ public final class FileMonitorHooks extends Hooker {
     String path = MonitorProtocol.storagePath(input);
     if (path == null) return;
     int flags = status == 0 ? MonitorProtocol.SUCCESS : MonitorProtocol.FAILED;
-    if (Math.abs(status) == 13 || Math.abs(status) == 1)
+    if (Math.abs(status) == 13 || Math.abs(status) == 1 || Math.abs(status) == 30)
       flags |= MonitorProtocol.BLOCKED;
     if (status == 17 || status == -17)
       flags = MonitorProtocol.EXISTS;

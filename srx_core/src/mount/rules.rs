@@ -5,6 +5,41 @@ use std::fs as std_fs;
 pub(super) const REAL_PATH_WILDCARD_EXPAND_LIMIT: usize = 512;
 
 impl MountPlanner {
+    // 按应用当前视图展开规则，通配符只匹配此刻已存在的目录；结果已排序去重
+    pub(super) fn expand_storage_view_rules(
+        &self,
+        rules: &[String],
+        storage_path: &str,
+        label: &str,
+    ) -> Vec<String> {
+        let storage_prefix = format!("{}/", storage_path);
+        let mut expanded_paths = Vec::new();
+        for rule in rules {
+            let resolved =
+                self.resolve_user_path(&self.resolve_placeholders(&self.normalize_path(rule)));
+            if !resolved.starts_with(&storage_prefix) || paths::has_unsafe_segments(&resolved) {
+                continue;
+            }
+            if !has_path_wildcard(&resolved) {
+                expanded_paths.push(resolved);
+                continue;
+            }
+            let expanded = Self::expand_real_path_wildcard(&resolved, storage_path, storage_path);
+            if expanded.len() >= REAL_PATH_WILDCARD_EXPAND_LIMIT {
+                log::warn!(
+                    "{} wildcard limit path={} limit={}",
+                    label,
+                    resolved,
+                    REAL_PATH_WILDCARD_EXPAND_LIMIT
+                );
+            }
+            expanded_paths.extend(expanded);
+        }
+        expanded_paths.sort();
+        expanded_paths.dedup();
+        expanded_paths
+    }
+
     pub(super) fn expand_real_path_wildcard(
         rule_path: &str,
         storage_path: &str,

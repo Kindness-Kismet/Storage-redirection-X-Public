@@ -74,6 +74,7 @@ pub fn parse_app_config(state: &mut SettingsState, package_name: &str, json_cont
             is_enabled: true,
             allowed_real_paths: Vec::new(),
             excluded_real_paths: Vec::new(),
+            readonly_real_paths: Vec::new(),
             path_mappings: Vec::new(),
         };
 
@@ -92,7 +93,7 @@ pub fn parse_app_config(state: &mut SettingsState, package_name: &str, json_cont
                 let Some(raw) = item.as_str() else {
                     continue;
                 };
-                let Some((is_excluded, resolved)) =
+                let Some((rule_kind, resolved)) =
                     resolve_allowed_path_rule_for_user(raw, &storage_root)
                 else {
                     log::warn!(
@@ -105,14 +106,19 @@ pub fn parse_app_config(state: &mut SettingsState, package_name: &str, json_cont
                 if resolved.is_empty() {
                     continue;
                 }
-                if is_excluded {
-                    user_profile.excluded_real_paths.push(resolved);
-                } else {
-                    user_profile.allowed_real_paths.push(resolved);
+                match rule_kind {
+                    RealPathRuleKind::Excluded => user_profile.excluded_real_paths.push(resolved),
+                    RealPathRuleKind::Allowed => user_profile.allowed_real_paths.push(resolved),
+                    // 只读目录同样需要恢复真实内容，挂载阶段再整体改为只读
+                    RealPathRuleKind::ReadOnly => {
+                        user_profile.allowed_real_paths.push(resolved.clone());
+                        user_profile.readonly_real_paths.push(resolved);
+                    }
                 }
             }
             normalize_paths(&mut user_profile.allowed_real_paths);
             normalize_paths(&mut user_profile.excluded_real_paths);
+            normalize_paths(&mut user_profile.readonly_real_paths);
         }
 
         if let Some(mappings_value) = user_obj.get("path_mappings") {
@@ -240,27 +246,36 @@ fn normalize_paths(paths: &mut Vec<String>) {
     paths.dedup();
 }
 
-// ! 前缀表示排除规则，返回 (is_excluded, 绝对路径)
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RealPathRuleKind {
+    Allowed,
+    Excluded,
+    ReadOnly,
+}
+
+// ! 前缀表示排除规则，^ 前缀表示只读规则，返回 (规则类型, 绝对路径)
 fn resolve_allowed_path_rule_for_user(
     raw_path: &str,
     storage_root: &str,
-) -> Option<(bool, String)> {
+) -> Option<(RealPathRuleKind, String)> {
     let raw_trimmed = raw_path.trim();
     if raw_trimmed.is_empty() {
         return None;
     }
 
-    let (is_excluded, path_body) = if let Some(stripped) = raw_trimmed.strip_prefix('!') {
-        (true, stripped.trim_start())
+    let (rule_kind, path_body) = if let Some(stripped) = raw_trimmed.strip_prefix('!') {
+        (RealPathRuleKind::Excluded, stripped.trim_start())
+    } else if let Some(stripped) = raw_trimmed.strip_prefix('^') {
+        (RealPathRuleKind::ReadOnly, stripped.trim_start())
     } else {
-        (false, raw_trimmed)
+        (RealPathRuleKind::Allowed, raw_trimmed)
     };
 
     let mut normalized = paths::normalize(path_body);
     if normalized.is_empty() {
         return None;
     }
-    if is_excluded {
+    if rule_kind == RealPathRuleKind::Excluded {
         normalized = normalize_excluded_hidden_segments(&normalized);
     }
     if paths::has_unsafe_segments(&normalized) {
@@ -279,7 +294,7 @@ fn resolve_allowed_path_rule_for_user(
         return None;
     }
 
-    Some((is_excluded, normalized))
+    Some((rule_kind, normalized))
 }
 
 fn normalize_excluded_hidden_segments(path: &str) -> String {
@@ -305,14 +320,10 @@ fn normalize_excluded_hidden_segment(segment: &str) -> &str {
     normalized
 }
 
-// 拒绝 ! 排除前缀，只接受普通相对路径
+// 映射路径拒绝 ! 与 ^ 前缀，只接受普通相对路径
 fn resolve_allowed_path_for_user(raw_path: &str, storage_root: &str) -> String {
-    let Some((is_excluded, resolved)) = resolve_allowed_path_rule_for_user(raw_path, storage_root)
-    else {
-        return String::new();
-    };
-    if is_excluded {
-        return String::new();
+    match resolve_allowed_path_rule_for_user(raw_path, storage_root) {
+        Some((RealPathRuleKind::Allowed, resolved)) => resolved,
+        _ => String::new(),
     }
-    resolved
 }

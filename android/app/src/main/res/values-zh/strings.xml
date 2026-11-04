@@ -169,6 +169,7 @@
     <string name="rule_config_restart_hint">修改后将自动停止目标应用以使配置生效</string>
     <string name="rule_config_section_count">%1$s · %2$d</string>
     <string name="rule_config_tag_excluded">排除</string>
+    <string name="rule_config_tag_readonly">只读</string>
     <string name="rule_config_shared_uid_title">共享 UID</string>
     <string name="rule_config_shared_uid_hint">此应用与以下应用共享 UID，开关或配置任一应用将同步影响所有关联应用：</string>
     <string name="rule_config_save_failed">保存失败</string>
@@ -177,10 +178,10 @@
     <string name="rule_config_error_absolute">路径必须为相对路径（不能以 / 开头）</string>
     <string name="rule_config_error_traversal">路径不能包含 ..</string>
     <string name="rule_config_error_same_paths">当前路径和目标路径不能相同</string>
-    <string name="rule_config_error_android_prefix">路径不能位于 Android/data 下</string>
+    <string name="rule_config_error_android_prefix">路径不能位于 Android/data 下；映射的当前路径可使用本应用数据目录中除 sdcard 外的子目录</string>
     <string name="rule_config_error_mapping_wildcard">映射路径不支持 * 或 ? 通配符</string>
-    <string name="rule_config_error_mapping_exclusion">映射路径不支持 ! 排除前缀</string>
-    <string name="rule_config_allowed_paths_rule_hint">支持通配符: * ?\n* 表示任意长度字符。\n? 表示单个字符。\n! 表示排除前缀。\n仅支持真实路径访问。</string>
+    <string name="rule_config_error_mapping_exclusion">映射路径不支持 ! 或 ^ 规则前缀</string>
+    <string name="rule_config_allowed_paths_rule_hint">支持通配符: * ?\n* 表示任意长度字符。\n? 表示单个字符。\n! 表示排除前缀。\n^ 表示只读前缀。\n仅支持真实路径访问。</string>
     <string name="rule_config_allowed_paths_rule_hint_desc">查看规则说明</string>
     <string name="rule_config_browse">浏览</string>
     <string name="rule_config_browser_use_current">选择当前目录</string>
@@ -278,7 +279,6 @@
     <!-- Common -->
     <string name="common_ok">确定</string>
     <string name="common_cancel">取消</string>
-    <string name="common_close">关闭</string>
     <string name="common_back">返回</string>
     <string name="common_pull_to_refresh">下拉刷新</string>
     <string name="common_release_to_refresh">松开刷新</string>
@@ -316,20 +316,18 @@
     <string name="browser_deselect_current">取消选择此目录</string>
     <string name="browser_restricted">受限目录</string>
     <string name="browser_select_directory">选择 %1$s</string>
-    <string name="browser_selected_count">已选 %1$d 项</string>
     <string name="browser_current_location">当前位置</string>
     <string name="browser_allow_access">允许访问</string>
     <string name="browser_exclude_directory">排除目录</string>
-    <string name="browser_clear_selection">清空选择</string>
+    <string name="browser_readonly_directory">只读目录</string>
     <string name="browser_show_hidden">显示隐藏目录</string>
-    <string name="browser_no_selection">还没有选择目录</string>
-    <string name="browser_remove_directory">移除 %1$s</string>
     <string name="browser_go_to_root">回到%1$s</string>
     <plurals name="browser_search_result_count">
         <item quantity="other">在 %1$s 中找到 %2$d 个</item>
     </plurals>
     <string name="browser_confirm_add">添加</string>
     <string name="browser_confirm_exclude">排除</string>
+    <string name="browser_confirm_readonly">只读</string>
     <string name="browser_path_collapse">收起</string>
     <plurals name="browser_path_more_levels">
         <item quantity="other">还有 %1$d 级</item>

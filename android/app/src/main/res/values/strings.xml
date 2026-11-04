@@ -170,6 +170,7 @@
     <string name="rule_config_restart_hint">Changes will automatically stop the target app to take effect</string>
     <string name="rule_config_section_count">%1$s · %2$d</string>
     <string name="rule_config_tag_excluded">Excluded</string>
+    <string name="rule_config_tag_readonly">Read-only</string>
     <string name="rule_config_shared_uid_title">Shared UID</string>
     <string name="rule_config_shared_uid_hint">This app shares UID with the following apps. Enabling or configuring any will affect all:</string>
     <string name="rule_config_save_failed">Save failed</string>
@@ -178,10 +179,10 @@
     <string name="rule_config_error_absolute">Path must be relative (no leading /)</string>
     <string name="rule_config_error_traversal">Path cannot contain ..</string>
     <string name="rule_config_error_same_paths">Current and target paths must be different</string>
-    <string name="rule_config_error_android_prefix">Path cannot be under Android/data</string>
+    <string name="rule_config_error_android_prefix">Path cannot be under Android/data. A mapping\'s current path may use a subfolder of this app\'s own data folder other than sdcard</string>
     <string name="rule_config_error_mapping_wildcard">Mapping paths do not support * or ? wildcards</string>
-    <string name="rule_config_error_mapping_exclusion">Mapping paths do not support ! exclusion prefix</string>
-    <string name="rule_config_allowed_paths_rule_hint">Supported wildcard symbols: * ?\n* matches any number of characters.\n? matches one character.\n! is the exclusion prefix.\nOnly real path access supports these rules.</string>
+    <string name="rule_config_error_mapping_exclusion">Mapping paths do not support the ! or ^ rule prefixes</string>
+    <string name="rule_config_allowed_paths_rule_hint">Supported wildcard symbols: * ?\n* matches any number of characters.\n? matches one character.\n! is the exclusion prefix.\n^ is the read-only prefix.\nOnly real path access supports these rules.</string>
     <string name="rule_config_allowed_paths_rule_hint_desc">View rule help</string>
     <string name="rule_config_browse">Browse</string>
     <string name="rule_config_browser_use_current">Use current directory</string>
@@ -287,7 +288,6 @@
     <!-- Common -->
     <string name="common_ok">OK</string>
     <string name="common_cancel">Cancel</string>
-    <string name="common_close">Close</string>
     <string name="common_back">Back</string>
     <string name="common_pull_to_refresh">Pull down to refresh</string>
     <string name="common_release_to_refresh">Release to refresh</string>
@@ -325,14 +325,11 @@
     <string name="browser_deselect_current">Deselect this folder</string>
     <string name="browser_restricted">Restricted folder</string>
     <string name="browser_select_directory">Select %1$s</string>
-    <string name="browser_selected_count">Selected %1$d</string>
     <string name="browser_current_location">Current location</string>
     <string name="browser_allow_access">Allow access</string>
     <string name="browser_exclude_directory">Exclude folders</string>
-    <string name="browser_clear_selection">Clear selection</string>
+    <string name="browser_readonly_directory">Read-only folders</string>
     <string name="browser_show_hidden">Show hidden folders</string>
-    <string name="browser_no_selection">No folders selected yet</string>
-    <string name="browser_remove_directory">Remove %1$s</string>
     <string name="browser_go_to_root">Go to %1$s</string>
     <plurals name="browser_search_result_count">
         <item quantity="one">%2$d found in %1$s</item>
@@ -340,6 +337,7 @@
     </plurals>
     <string name="browser_confirm_add">Add</string>
     <string name="browser_confirm_exclude">Exclude</string>
+    <string name="browser_confirm_readonly">Read-only</string>
     <string name="browser_path_collapse">Collapse</string>
     <plurals name="browser_path_more_levels">
         <item quantity="one">%1$d more level</item>

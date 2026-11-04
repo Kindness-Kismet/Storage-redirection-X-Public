@@ -1,5 +1,21 @@
 package com.storage.redirect.x.data.model
 
+// 真实路径规则以前缀区分类型，与核心配置解析保持一致
+enum class RealPathRuleMode(val prefix: String) {
+    Allow(""),
+    Exclude("!"),
+    ReadOnly("^");
+
+    fun next(): RealPathRuleMode = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun of(rule: String): RealPathRuleMode {
+            val value = rule.trim()
+            return entries.firstOrNull { it.prefix.isNotEmpty() && value.startsWith(it.prefix) } ?: Allow
+        }
+    }
+}
+
 // 整体重定向配置（白名单模式）
 data class RedirectConfig(
     val userId: Int = 0,
@@ -35,13 +51,11 @@ data class RedirectConfig(
     // 更新应用配置
     fun updateAppConfig(config: AppRedirectConfig): RedirectConfig {
         // 标准化路径
-        val cleanedPaths = config.allowedRealPaths
-            .mapNotNull { normalizeAllowedPath(it) }
-            .toSortedSet().toList()
+        val cleanedPaths = normalizeAllowedPaths(config.allowedRealPaths)
 
         val mappingByRequest = linkedMapOf<String, StoragePathMapping>()
         for (mapping in config.pathMappings) {
-            val requestPath = normalizeMappingPath(mapping.requestPath) ?: continue
+            val requestPath = normalizeMappingPath(mapping.requestPath, config.packageName) ?: continue
             val finalPath = normalizeMappingPath(mapping.finalPath) ?: continue
             if (requestPath == finalPath) continue
             mappingByRequest[requestPath] = StoragePathMapping(requestPath, finalPath)
@@ -90,7 +104,8 @@ data class RedirectConfig(
     fun updateAllowedRealPath(packageName: String, index: Int, path: String): RedirectConfig {
         val existing = getAppConfig(packageName) ?: return this
         if (index >= existing.allowedRealPaths.size) return this
-        val newPaths = existing.allowedRealPaths.toMutableList().apply { set(index, path) }
+        // 编辑结果移到末尾，与同一路径的其他规则去重时以本次编辑为准
+        val newPaths = existing.allowedRealPaths.filterIndexed { i, _ -> i != index } + path
         return updateAppConfig(existing.copy(allowedRealPaths = newPaths))
     }
 
@@ -128,76 +143,71 @@ data class RedirectConfig(
     }
 
     companion object {
-        // 标准化允许路径规则：支持 ! 前缀和通配符
+        // 标准化允许路径规则：支持 ! 与 ^ 前缀和通配符
         fun normalizeAllowedPath(raw: String): String? {
             val value = raw.trim()
             if (value.isEmpty()) return null
 
-            val (isExcluded, bodyRaw) = if (value.startsWith("!")) {
-                true to value.drop(1).trimStart()
-            } else {
-                false to value
-            }
-
-            var body = normalizeRelativePath(bodyRaw) ?: return null
-            if (isExcluded) {
+            val mode = RealPathRuleMode.of(value)
+            var body = normalizeRelativePath(value.drop(mode.prefix.length).trimStart()) ?: return null
+            if (mode == RealPathRuleMode.Exclude) {
                 body = normalizeExcludedHiddenSegments(body)
             }
-            return if (isExcluded) "!$body" else body
+            return mode.prefix + body
         }
 
-        // 标准化映射路径：仅接受普通相对路径，不支持 ! 和通配符
-        fun normalizeMappingPath(raw: String): String? {
+        // 同一路径只保留一条规则，靠后的覆盖靠前的，使新添加的类型生效
+        fun normalizeAllowedPaths(paths: List<String>): List<String> =
+            paths.mapNotNull { normalizeAllowedPath(it) }
+                .associateBy { it.drop(RealPathRuleMode.of(it).prefix.length) }
+                .values.sorted()
+
+        // 标准化映射路径：仅接受普通相对路径，不支持规则前缀和通配符；privateOwner 允许该应用自己的私有子目录
+        fun normalizeMappingPath(raw: String, privateOwner: String? = null): String? {
             val value = raw.trim()
             if (value.isEmpty()) return null
-            if (value.startsWith("!")) return null
+            if (RealPathRuleMode.of(value) != RealPathRuleMode.Allow) return null
             if (containsWildcard(value)) return null
-            return normalizeRelativePath(value)
+            return normalizeRelativePath(value, privateOwner)
         }
 
-        // 校验真实路径规则：允许 ! 前缀和通配符
+        // 校验真实路径规则：允许 ! 与 ^ 前缀和通配符
         fun validateAllowedPath(raw: String): PathValidationResult {
             val rawValue = raw.trim()
             if (rawValue.isEmpty()) {
                 return PathValidationResult.Empty
             }
 
-            val (isExcluded, bodyRaw) = if (rawValue.startsWith("!")) {
-                true to rawValue.drop(1).trimStart()
-            } else {
-                false to rawValue
-            }
-
-            val validation = validateRelativePath(bodyRaw)
+            val mode = RealPathRuleMode.of(rawValue)
+            val validation = validateRelativePath(rawValue.drop(mode.prefix.length).trimStart())
             if (validation !is PathValidationResult.Valid) {
                 return validation
             }
 
-            val body = if (isExcluded) {
+            val body = if (mode == RealPathRuleMode.Exclude) {
                 normalizeExcludedHiddenSegments(validation.normalized)
             } else {
                 validation.normalized
             }
-            val normalized = if (isExcluded) "!$body" else body
-            return PathValidationResult.Valid(normalized)
+            return PathValidationResult.Valid(mode.prefix + body)
         }
 
-        // 校验映射路径：不允许 ! 前缀和通配符
-        fun validateMappingPath(raw: String): PathValidationResult {
+        // 校验映射路径：不允许规则前缀和通配符；privateOwner 允许该应用自己的私有子目录
+        fun validateMappingPath(raw: String, privateOwner: String? = null): PathValidationResult {
             val value = raw.trim()
             if (value.isEmpty()) {
                 return PathValidationResult.Empty
             }
-            if (value.startsWith("!")) {
+            if (RealPathRuleMode.of(value) != RealPathRuleMode.Allow) {
                 return PathValidationResult.ExclusionNotAllowed
             }
             if (containsWildcard(value)) {
                 return PathValidationResult.WildcardNotAllowed
             }
-            return validateRelativePath(value)
+            return validateRelativePath(value, privateOwner)
         }
 
-        private fun validateRelativePath(raw: String): PathValidationResult {
+        private fun validateRelativePath(raw: String, privateOwner: String? = null): PathValidationResult {
             val value = raw.trim()
             if (value.isEmpty()) {
                 return PathValidationResult.Empty
@@ -215,19 +225,27 @@ data class RedirectConfig(
             if (segments.size >= 2
                 && segments[0].equals("Android", ignoreCase = true)
                 && segments[1].equals("data", ignoreCase = true)
+                && !isOwnPrivateSubdirectory(segments, privateOwner)
             ) {
                 return PathValidationResult.AndroidDataPath
             }
             return PathValidationResult.Valid(segments.joinToString("/"))
         }
 
-        private fun normalizeRelativePath(raw: String): String? {
+        // 包根目录与 sdcard 沙盒不可作为映射挂载点，否则会遮住整个沙盒
+        private fun isOwnPrivateSubdirectory(segments: List<String>, privateOwner: String?): Boolean =
+            privateOwner != null &&
+                segments.size >= 4 &&
+                segments[2] == privateOwner &&
+                !segments[3].equals("sdcard", ignoreCase = true)
+
+        private fun normalizeRelativePath(raw: String, privateOwner: String? = null): String? {
             var value = raw.trim()
             if (value.isEmpty()) return null
             while (value.length > 1 && value.endsWith("/")) {
                 value = value.dropLast(1)
             }
-            val validation = validateRelativePath(value)
+            val validation = validateRelativePath(value, privateOwner)
             return if (validation is PathValidationResult.Valid) validation.normalized else null
         }
 
