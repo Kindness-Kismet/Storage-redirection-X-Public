@@ -100,15 +100,6 @@ data class RedirectConfig(
         return updateAppConfig(existing.copy(allowedRealPaths = newPaths))
     }
 
-    // 更新允许访问的真实路径
-    fun updateAllowedRealPath(packageName: String, index: Int, path: String): RedirectConfig {
-        val existing = getAppConfig(packageName) ?: return this
-        if (index >= existing.allowedRealPaths.size) return this
-        // 编辑结果移到末尾，与同一路径的其他规则去重时以本次编辑为准
-        val newPaths = existing.allowedRealPaths.filterIndexed { i, _ -> i != index } + path
-        return updateAppConfig(existing.copy(allowedRealPaths = newPaths))
-    }
-
     // 添加路径映射
     fun addPathMapping(packageName: String, mapping: StoragePathMapping): RedirectConfig {
         val existing = getAppConfig(packageName)
@@ -125,14 +116,6 @@ data class RedirectConfig(
         val existing = getAppConfig(packageName) ?: return this
         if (index >= existing.pathMappings.size) return this
         val newMappings = existing.pathMappings.toMutableList().apply { removeAt(index) }
-        return updateAppConfig(existing.copy(pathMappings = newMappings))
-    }
-
-    // 更新路径映射
-    fun updatePathMapping(packageName: String, index: Int, mapping: StoragePathMapping): RedirectConfig {
-        val existing = getAppConfig(packageName) ?: return this
-        if (index >= existing.pathMappings.size) return this
-        val newMappings = existing.pathMappings.toMutableList().apply { set(index, mapping) }
         return updateAppConfig(existing.copy(pathMappings = newMappings))
     }
 

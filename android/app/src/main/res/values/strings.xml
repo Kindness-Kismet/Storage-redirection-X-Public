@@ -154,12 +154,10 @@
     <string name="rule_config_allowed_paths">Allowed Paths</string>
     <string name="rule_config_path_mappings">Path Mappings</string>
     <string name="rule_config_add_path">Add Path</string>
-    <string name="rule_config_edit_path">Edit Path</string>
     <string name="rule_config_delete_path">Delete Path</string>
     <string name="rule_config_delete_confirm">Delete this path?</string>
     <string name="rule_config_real_path">Real Path</string>
     <string name="rule_config_add_mapping">Add Mapping</string>
-    <string name="rule_config_edit_mapping">Edit Mapping</string>
     <string name="rule_config_delete_mapping">Delete Mapping</string>
     <string name="rule_config_delete_mapping_confirm">Delete this mapping?</string>
     <string name="rule_config_mapping_request_path">Request Path</string>

@@ -55,9 +55,9 @@ internal fun RuleSectionTitle(title: String) {
 
 // 排除与只读规则去掉前缀，分别改用红色与黄色标签标出
 @Composable
-internal fun AllowedPathRow(path: String, onClick: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AllowedPathRow(path: String, onDelete: () -> Unit, modifier: Modifier = Modifier) {
     val mode = RealPathRuleMode.of(path)
-    RuleRow(onClick = onClick, onDelete = onDelete, modifier = modifier) {
+    RuleRow(onDelete = onDelete, modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = path.trim().removePrefix(mode.prefix),
@@ -88,11 +88,10 @@ internal fun AllowedPathRow(path: String, onClick: () -> Unit, onDelete: () -> U
 internal fun PathMappingRow(
     requestPath: String,
     finalPath: String,
-    onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    RuleRow(onClick = onClick, onDelete = onDelete, modifier = modifier) {
+    RuleRow(onDelete = onDelete, modifier = modifier) {
         Text(
             text = requestPath,
             fontFamily = FontFamily.Monospace,
@@ -115,7 +114,6 @@ internal fun PathMappingRow(
 // 卡片内的规则行：点按编辑，右侧删除
 @Composable
 private fun RuleRow(
-    onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier,
     content: @Composable () -> Unit,
@@ -125,7 +123,6 @@ private fun RuleRow(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
             .padding(start = RULE_CARD_CONTENT_PADDING, end = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

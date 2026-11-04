@@ -20,7 +20,6 @@ internal class PathBrowserState(
     val packageName: String?,
     val multiSelect: Boolean,
     val allowExclude: Boolean,
-    initialRuleMode: RealPathRuleMode = RealPathRuleMode.Allow,
 ) {
     var currentPath by mutableStateOf("")
         private set
@@ -35,7 +34,7 @@ internal class PathBrowserState(
         private set
     var showHidden by mutableStateOf(true)
     var isDescending by mutableStateOf(false)
-    var ruleMode by mutableStateOf(if (allowExclude) initialRuleMode else RealPathRuleMode.Allow)
+    var ruleMode by mutableStateOf(RealPathRuleMode.Allow)
     var reloadKey by mutableIntStateOf(0)
     var isSearchActive by mutableStateOf(false)
     var isPathPanelExpanded by mutableStateOf(false)
@@ -61,7 +60,7 @@ internal class PathBrowserState(
 
     val canConfirm: Boolean
         get() = if (multiSelect) confirmablePaths.isNotEmpty()
-        else !isLoading && !hasLoadError && canSelect(currentPath) && !isAlwaysAllowed(currentPath)
+        else !isLoading && !hasLoadError && canSelect(currentPath)
 
     // 切换模式后，已选目录可能变为始终允许，不再生成规则
     private val confirmablePaths: List<String>

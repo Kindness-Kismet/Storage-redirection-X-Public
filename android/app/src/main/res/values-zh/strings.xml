@@ -153,12 +153,10 @@
     <string name="rule_config_allowed_paths">允许访问路径</string>
     <string name="rule_config_path_mappings">路径映射</string>
     <string name="rule_config_add_path">添加路径</string>
-    <string name="rule_config_edit_path">编辑路径</string>
     <string name="rule_config_delete_path">删除路径</string>
     <string name="rule_config_delete_confirm">确定要删除这条路径吗？</string>
     <string name="rule_config_real_path">真实路径</string>
     <string name="rule_config_add_mapping">添加映射</string>
-    <string name="rule_config_edit_mapping">编辑映射</string>
     <string name="rule_config_delete_mapping">删除映射</string>
     <string name="rule_config_delete_mapping_confirm">确定要删除这条映射吗？</string>
     <string name="rule_config_mapping_request_path">请求路径</string>

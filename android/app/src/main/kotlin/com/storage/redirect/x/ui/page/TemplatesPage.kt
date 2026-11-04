@@ -230,12 +230,10 @@ private fun TemplateEditorPage(
     var renameError by remember { mutableStateOf(false) }
 
     val showPathDialog = remember { mutableStateOf(false) }
-    var pathDialogIndex by remember { mutableStateOf<Int?>(null) }
     var dialogPathInput by remember { mutableStateOf("") }
     var pathDialogErrorResId by remember { mutableStateOf<Int?>(null) }
 
     val showMappingDialog = remember { mutableStateOf(false) }
-    var mappingDialogIndex by remember { mutableStateOf<Int?>(null) }
     var dialogMappingRequestPathInput by remember { mutableStateOf("") }
     var dialogMappingFinalPathInput by remember { mutableStateOf("") }
     var mappingDialogErrorResId by remember { mutableStateOf<Int?>(null) }
@@ -307,12 +305,6 @@ private fun TemplateEditorPage(
                     currentTemplate.allowedRealPaths.forEachIndexed { index, path ->
                         AllowedPathRow(
                             path = path,
-                            onClick = {
-                                pathDialogIndex = index
-                                dialogPathInput = path
-                                pathDialogErrorResId = null
-                                showPathDialog.value = true
-                            },
                             onDelete = {
                                 deleteTarget = TemplateDeleteTarget.Path(index)
                                 showDeleteDialog.value = true
@@ -325,7 +317,6 @@ private fun TemplateEditorPage(
                             icon = AppIcons.Add,
                             text = stringResource(R.string.rule_config_add_path),
                             onClick = {
-                                pathDialogIndex = null
                                 dialogPathInput = ""
                                 pathDialogErrorResId = null
                                 showPathDialog.value = true
@@ -354,13 +345,6 @@ private fun TemplateEditorPage(
                         PathMappingRow(
                             requestPath = mapping.requestPath,
                             finalPath = mapping.finalPath,
-                            onClick = {
-                                mappingDialogIndex = index
-                                dialogMappingRequestPathInput = mapping.requestPath
-                                dialogMappingFinalPathInput = mapping.finalPath
-                                mappingDialogErrorResId = null
-                                showMappingDialog.value = true
-                            },
                             onDelete = {
                                 deleteTarget = TemplateDeleteTarget.Mapping(index)
                                 showDeleteDialog.value = true
@@ -373,7 +357,6 @@ private fun TemplateEditorPage(
                             icon = AppIcons.Add,
                             text = stringResource(R.string.rule_config_add_mapping),
                             onClick = {
-                                mappingDialogIndex = null
                                 dialogMappingRequestPathInput = ""
                                 dialogMappingFinalPathInput = ""
                                 mappingDialogErrorResId = null
@@ -430,10 +413,9 @@ private fun TemplateEditorPage(
         )
     }
 
-    val isEditingPath = pathDialogIndex != null
     WindowDialog(
         show = showPathDialog.value,
-        title = stringResource(if (isEditingPath) R.string.rule_config_edit_path else R.string.rule_config_add_path),
+        title = stringResource(R.string.rule_config_add_path),
         onDismissRequest = {
             pathDialogErrorResId = null
             showPathDialog.value = false
@@ -467,20 +449,17 @@ private fun TemplateEditorPage(
                     pathDialogErrorResId = resolvePathValidationErrorResId(validation)
                     return@TemplateDialogButtonRow false
                 }
-                // 编辑结果追加到末尾，与同一路径的其他规则去重时以本次编辑为准
-                val index = pathDialogIndex
-                val paths = currentTemplate.allowedRealPaths.filterIndexed { i, _ -> i != index } +
-                    validation.normalized
+                // 追加到末尾，与同一路径的其他规则去重时以本次添加为准
+                val paths = currentTemplate.allowedRealPaths + validation.normalized
                 updateTemplate(currentTemplate.copy(allowedRealPaths = paths))
                 true
             },
         )
     }
 
-    val isEditingMapping = mappingDialogIndex != null
     WindowDialog(
         show = showMappingDialog.value,
-        title = stringResource(if (isEditingMapping) R.string.rule_config_edit_mapping else R.string.rule_config_add_mapping),
+        title = stringResource(R.string.rule_config_add_mapping),
         summary = stringResource(R.string.rule_config_mapping_hint),
         onDismissRequest = {
             mappingDialogErrorResId = null
@@ -535,15 +514,8 @@ private fun TemplateEditorPage(
                     return@TemplateDialogButtonRow false
                 }
 
-                val mappings = currentTemplate.pathMappings.toMutableList()
                 val mapping = StoragePathMapping(requestValidation.normalized, finalValidation.normalized)
-                val index = mappingDialogIndex
-                if (index == null) {
-                    mappings.add(mapping)
-                } else if (index in mappings.indices) {
-                    mappings[index] = mapping
-                }
-                updateTemplate(currentTemplate.copy(pathMappings = mappings))
+                updateTemplate(currentTemplate.copy(pathMappings = currentTemplate.pathMappings + mapping))
                 true
             },
         )
