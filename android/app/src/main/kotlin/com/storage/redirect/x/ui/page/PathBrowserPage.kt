@@ -17,7 +17,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import com.storage.redirect.x.BuildConfig
-import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.data.repository.PathBrowserRepository
 import com.storage.redirect.x.ui.component.PAGE_ITEM_GAP
 import com.storage.redirect.x.ui.component.SrxScaffold
@@ -34,13 +33,12 @@ fun PathBrowserPage(
     packageName: String? = null,
     multiSelect: Boolean = false,
     allowExclude: Boolean = false,
-    initialRuleMode: RealPathRuleMode = RealPathRuleMode.Allow,
     onBack: () -> Unit,
     onPathSelect: (String) -> Unit,
     onPathsSelect: (List<String>) -> Unit = {},
 ) {
-    val state = remember(userId, packageName, multiSelect, allowExclude, initialRuleMode) {
-        PathBrowserState(userId, packageName, multiSelect, allowExclude, initialRuleMode)
+    val state = remember(userId, packageName, multiSelect, allowExclude) {
+        PathBrowserState(userId, packageName, multiSelect, allowExclude)
     }
     // 页面切换取消旧协程，状态代次同时拒绝尚未返回的旧请求。
     LaunchedEffect(state, state.currentPath, state.reloadKey) {

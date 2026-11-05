@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.sp
 import com.storage.redirect.x.R
 import com.storage.redirect.x.ui.icon.AppIcons
 import com.storage.redirect.x.data.model.PathValidationResult
-import com.storage.redirect.x.data.model.RealPathRuleMode
 import com.storage.redirect.x.data.model.RedirectConfig
 import com.storage.redirect.x.data.model.RedirectTemplate
 import com.storage.redirect.x.data.model.StoragePathMapping
@@ -80,6 +79,7 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 // 页面间距：列表横向边距，区块间距，行内边距，弹窗字段间距与提示卡片间距
 private val RULE_CONFIG_ITEM_SPACING = 4.dp
@@ -114,16 +114,8 @@ fun RuleConfigPage(
     // 保存锁覆盖完整 I/O，旧任务取消后新写入仍须等待旧写入结束。
     val saveMutex = remember { Mutex() }
 
-    // 路径弹窗状态（null = 添加，非 null = 编辑对应索引）
-    val showPathDialog = remember { mutableStateOf(false) }
-    var pathDialogIndex by remember { mutableStateOf<Int?>(null) }
-    var dialogPathInput by remember { mutableStateOf("") }
-    var pathDialogErrorResId by remember { mutableStateOf<Int?>(null) }
-    var showAllowedPathHint by remember { mutableStateOf(false) }
-
     // 映射弹窗状态
     val showMappingDialog = remember { mutableStateOf(false) }
-    var mappingDialogIndex by remember { mutableStateOf<Int?>(null) }
     var dialogMappingRequestPathInput by remember { mutableStateOf("") }
     var dialogMappingFinalPathInput by remember { mutableStateOf("") }
     var mappingDialogErrorResId by remember { mutableStateOf<Int?>(null) }
@@ -271,48 +263,33 @@ fun RuleConfigPage(
                 browserRepository = pathBrowserRepo,
                 userId = userId,
                 packageName = if (target == BrowseTarget.MappingCurrentPath) packageName else null,
-                multiSelect = target == BrowseTarget.Path && pathDialogIndex == null,
+                multiSelect = target == BrowseTarget.Path,
                 allowExclude = target == BrowseTarget.Path,
-                initialRuleMode = if (target == BrowseTarget.Path) RealPathRuleMode.of(dialogPathInput) else RealPathRuleMode.Allow,
                 onBack = onBrowserBack,
+                // 允许路径只走多选，单选结果只来自映射路径
                 onPathSelect = { selected ->
-                    when (target) {
-                        BrowseTarget.Path -> {
-                            dialogPathInput = selected
-                            pathDialogErrorResId = null
-                            showPathDialog.value = true
-                        }
-
-                        BrowseTarget.MappingTargetPath -> {
-                            dialogMappingFinalPathInput = selected
-                            mappingDialogErrorResId = null
-                            showMappingDialog.value = true
-                        }
-
-                        BrowseTarget.MappingCurrentPath -> {
-                            dialogMappingRequestPathInput = selected
-                            mappingDialogErrorResId = null
-                            showMappingDialog.value = true
-                        }
+                    if (target == BrowseTarget.MappingCurrentPath) {
+                        dialogMappingRequestPathInput = selected
+                    } else {
+                        dialogMappingFinalPathInput = selected
                     }
+                    mappingDialogErrorResId = null
+                    showMappingDialog.value = true
                     onBrowserBack()
                 },
                 onPathsSelect = { paths ->
                     val validPaths = paths.mapNotNull { raw ->
-                        val validation = RedirectConfig.validateAllowedPath(raw)
+                        val validation = RedirectConfig.validateRealPathRule(raw)
                         if (validation is PathValidationResult.Valid) validation.normalized else null
                     }
                     if (validPaths.isEmpty()) {
-                        pathDialogErrorResId = R.string.rule_config_browser_invalid_path
-                        showPathDialog.value = true
+                        Toast.makeText(context, R.string.rule_config_browser_invalid_path, Toast.LENGTH_SHORT).show()
                     } else {
                         var nextConfig = config
                         for (path in validPaths) {
                             nextConfig = nextConfig.addAllowedRealPath(packageName, path)
                         }
                         saveConfig(nextConfig)
-                        pathDialogErrorResId = null
-                        showPathDialog.value = false
                         if (validPaths.size < paths.size) {
                             Toast.makeText(context, R.string.rule_config_paths_partially_invalid, Toast.LENGTH_SHORT).show()
                         }
@@ -380,8 +357,10 @@ fun RuleConfigPage(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .overScrollVertical()
                         .nestedScroll(scrollBehavior.nestedScrollConnection)
                         .padding(horizontal = PAGE_HORIZONTAL_PADDING),
+                    overscrollEffect = null,
                     contentPadding = PaddingValues(
                         top = padding.calculateTopPadding(),
                         bottom = padding.calculateBottomPadding(),
@@ -422,7 +401,7 @@ fun RuleConfigPage(
                         }
                     }
 
-                    // 允许访问路径：规则说明收进标题右侧 ⓘ，添加与浏览固定在卡片底部
+                    // 允许访问路径：添加入口固定在卡片底部
                     item {
                         RuleSectionTitle(
                             title = stringResource(
@@ -430,10 +409,8 @@ fun RuleConfigPage(
                                 stringResource(R.string.rule_config_allowed_paths),
                                 allowedPaths.size,
                             ),
-                            onInfo = { showAllowedPathHint = !showAllowedPathHint },
                         )
                     }
-                    item { AllowedPathHintCard(showAllowedPathHint) }
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             if (allowedPaths.isEmpty()) {
@@ -442,12 +419,6 @@ fun RuleConfigPage(
                             allowedPaths.forEachIndexed { index, path ->
                                 AllowedPathRow(
                                     path = path,
-                                    onClick = {
-                                        pathDialogIndex = index
-                                        dialogPathInput = path
-                                        pathDialogErrorResId = null
-                                        showPathDialog.value = true
-                                    },
                                     onDelete = {
                                         deleteTarget = DeleteTarget.Path(index)
                                         showDeleteDialog.value = true
@@ -455,16 +426,10 @@ fun RuleConfigPage(
                                 )
                             }
                             CardActionRow {
-                                // 直接进入浏览器选择，添加后可在列表中点击路径手动编辑
                                 CardActionButton(
                                     icon = AppIcons.Add,
                                     text = stringResource(R.string.rule_config_add_path),
-                                    onClick = {
-                                        pathDialogIndex = null
-                                        dialogPathInput = ""
-                                        pathDialogErrorResId = null
-                                        browseStack.push(BrowseTarget.Path)
-                                    },
+                                    onClick = { browseStack.push(BrowseTarget.Path) },
                                     modifier = Modifier.testTag("rule_config_add_path"),
                                 )
                             }
@@ -490,13 +455,6 @@ fun RuleConfigPage(
                                 PathMappingRow(
                                     requestPath = mapping.requestPath,
                                     finalPath = mapping.finalPath,
-                                    onClick = {
-                                        mappingDialogIndex = index
-                                        dialogMappingRequestPathInput = mapping.requestPath
-                                        dialogMappingFinalPathInput = mapping.finalPath
-                                        mappingDialogErrorResId = null
-                                        showMappingDialog.value = true
-                                    },
                                     onDelete = {
                                         deleteTarget = DeleteTarget.Mapping(index)
                                         showDeleteDialog.value = true
@@ -508,7 +466,6 @@ fun RuleConfigPage(
                                     icon = AppIcons.Add,
                                     text = stringResource(R.string.rule_config_add_mapping),
                                     onClick = {
-                                        mappingDialogIndex = null
                                         dialogMappingRequestPathInput = ""
                                         dialogMappingFinalPathInput = ""
                                         mappingDialogErrorResId = null
@@ -539,96 +496,10 @@ fun RuleConfigPage(
         }
     }
 
-    // 路径添加/编辑弹窗（合并）
-    val isEditingPath = pathDialogIndex != null
-    WindowDialog(
-        show = showPathDialog.value && !isBrowsing,
-        title = stringResource(
-            if (isEditingPath) R.string.rule_config_edit_path else R.string.rule_config_add_path
-        ),
-        onDismissRequest = {
-            pathDialogErrorResId = null
-            showPathDialog.value = false
-        }
-    ) {
-        RulePathField(
-            value = dialogPathInput,
-            onValueChange = {
-                dialogPathInput = it
-                pathDialogErrorResId = null
-            },
-            label = stringResource(R.string.rule_config_real_path),
-            onBrowse = { browseStack.push(BrowseTarget.Path) },
-        )
-        pathDialogErrorResId?.let { errorResId ->
-            Spacer(Modifier.height(RULE_CONFIG_DIALOG_FIELD_SPACING))
-            Text(
-                text = stringResource(errorResId),
-                color = MiuixTheme.colorScheme.error,
-                style = MiuixTheme.textStyles.body2
-            )
-        }
-        Spacer(Modifier.height(RULE_CONFIG_DIALOG_BOTTOM_SPACING))
-        DialogButtonRow(
-            show = showPathDialog,
-            onConfirm = {
-                val validation = RedirectConfig.validateAllowedPath(dialogPathInput)
-                when (validation) {
-                    is PathValidationResult.Valid -> {
-                        pathDialogErrorResId = null
-                        scope.launch {
-                            val newConfig = if (isEditingPath) {
-                                val targetIndex = pathDialogIndex ?: return@launch
-                                config.updateAllowedRealPath(packageName, targetIndex, validation.normalized)
-                            } else {
-                                config.addAllowedRealPath(packageName, validation.normalized)
-                            }
-                            saveConfig(newConfig)
-                        }
-                        true
-                    }
-
-                    PathValidationResult.Empty -> {
-                        pathDialogErrorResId = R.string.rule_config_error_empty
-                        false
-                    }
-
-                    PathValidationResult.Absolute -> {
-                        pathDialogErrorResId = R.string.rule_config_error_absolute
-                        false
-                    }
-
-                    PathValidationResult.Traversal -> {
-                        pathDialogErrorResId = R.string.rule_config_error_traversal
-                        false
-                    }
-
-                    PathValidationResult.AndroidDataPath -> {
-                        pathDialogErrorResId = R.string.rule_config_error_android_prefix
-                        false
-                    }
-
-                    PathValidationResult.WildcardNotAllowed -> {
-                        pathDialogErrorResId = R.string.rule_config_error_mapping_wildcard
-                        false
-                    }
-
-                    PathValidationResult.ExclusionNotAllowed -> {
-                        pathDialogErrorResId = R.string.rule_config_error_mapping_exclusion
-                        false
-                    }
-                }
-            }
-        )
-    }
-
-    // 映射添加/编辑弹窗（合并）
-    val isEditingMapping = mappingDialogIndex != null
+    // 映射添加弹窗
     WindowDialog(
         show = showMappingDialog.value && !isBrowsing,
-        title = stringResource(
-            if (isEditingMapping) R.string.rule_config_edit_mapping else R.string.rule_config_add_mapping
-        ),
+        title = stringResource(R.string.rule_config_add_mapping),
         summary = stringResource(R.string.rule_config_mapping_hint),
         onDismissRequest = {
             mappingDialogErrorResId = null
@@ -690,13 +561,7 @@ fun RuleConfigPage(
                         mappingRequestPathValidation.normalized,
                         mappingFinalPathValidation.normalized
                     )
-                    val newConfig = if (isEditingMapping) {
-                        val targetIndex = mappingDialogIndex ?: return@launch
-                        config.updatePathMapping(packageName, targetIndex, mapping)
-                    } else {
-                        config.addPathMapping(packageName, mapping)
-                    }
-                    saveConfig(newConfig)
+                    saveConfig(config.addPathMapping(packageName, mapping))
                 }
                 true
             }

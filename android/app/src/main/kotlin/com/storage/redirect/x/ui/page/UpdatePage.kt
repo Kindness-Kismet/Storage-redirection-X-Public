@@ -31,6 +31,7 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 @Composable
 fun UpdatePage(
@@ -64,8 +65,9 @@ fun UpdatePage(
     ) { innerPadding ->
         Column(
             Modifier.fillMaxSize()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), overscrollEffect = null)
         ) {
             Spacer(Modifier.height(innerPadding.calculateTopPadding() + PAGE_CONTENT_TOP_PADDING))
             Card(Modifier.padding(horizontal = PAGE_HORIZONTAL_PADDING)) {

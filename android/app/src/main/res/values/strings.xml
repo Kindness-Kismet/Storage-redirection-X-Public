@@ -154,12 +154,9 @@
     <string name="rule_config_allowed_paths">Allowed Paths</string>
     <string name="rule_config_path_mappings">Path Mappings</string>
     <string name="rule_config_add_path">Add Path</string>
-    <string name="rule_config_edit_path">Edit Path</string>
     <string name="rule_config_delete_path">Delete Path</string>
     <string name="rule_config_delete_confirm">Delete this path?</string>
-    <string name="rule_config_real_path">Real Path</string>
     <string name="rule_config_add_mapping">Add Mapping</string>
-    <string name="rule_config_edit_mapping">Edit Mapping</string>
     <string name="rule_config_delete_mapping">Delete Mapping</string>
     <string name="rule_config_delete_mapping_confirm">Delete this mapping?</string>
     <string name="rule_config_mapping_request_path">Request Path</string>
@@ -180,10 +177,9 @@
     <string name="rule_config_error_traversal">Path cannot contain ..</string>
     <string name="rule_config_error_same_paths">Current and target paths must be different</string>
     <string name="rule_config_error_android_prefix">Path cannot be under Android/data. A mapping\'s current path may use a subfolder of this app\'s own data folder other than sdcard</string>
-    <string name="rule_config_error_mapping_wildcard">Mapping paths do not support * or ? wildcards</string>
+    <string name="rule_config_error_android_always_allowed">The Android folder is always accessible. Only paths under Android/media can be excluded or made read-only</string>
+    <string name="rule_config_error_wildcard">Paths do not support * or ? wildcards</string>
     <string name="rule_config_error_mapping_exclusion">Mapping paths do not support the ! or ^ rule prefixes</string>
-    <string name="rule_config_allowed_paths_rule_hint">Supported wildcard symbols: * ?\n* matches any number of characters.\n? matches one character.\n! is the exclusion prefix.\n^ is the read-only prefix.\nOnly real path access supports these rules.</string>
-    <string name="rule_config_allowed_paths_rule_hint_desc">View rule help</string>
     <string name="rule_config_browse">Browse</string>
     <string name="rule_config_browser_use_current">Use current directory</string>
     <string name="rule_config_browser_load_failed">Failed to load directory</string>

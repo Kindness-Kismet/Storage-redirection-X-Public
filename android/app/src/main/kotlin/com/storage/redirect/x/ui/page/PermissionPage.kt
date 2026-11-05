@@ -52,6 +52,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 // 权限状态
 enum class PermissionState { UNKNOWN, CHECKING, GRANTED, DENIED }
@@ -120,8 +121,9 @@ fun PermissionPage(onAllGranted: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), overscrollEffect = null)
                 .padding(padding)
                 .padding(horizontal = PAGE_HORIZONTAL_PADDING, vertical = PAGE_CONTENT_TOP_PADDING),
             verticalArrangement = Arrangement.spacedBy(PAGE_ITEM_GAP),

@@ -66,6 +66,7 @@ import top.yukonga.miuix.kmp.basic.SearchBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 private const val LOG_LINE_COUNT = 500
 // 日志卡片：圆角与 miuix Card 一致，另含内边距与类型标记尺寸
@@ -228,7 +229,9 @@ fun LogsPage(onBack: () -> Unit, bottomInnerPadding: Dp = 0.dp) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .overScrollVertical()
                     .nestedScroll(scrollBehavior.nestedScrollConnection),
+                overscrollEffect = null,
                 contentPadding = PaddingValues(
                     start = PAGE_HORIZONTAL_PADDING,
                     top = topPadding + PAGE_CONTENT_TOP_PADDING,

@@ -84,6 +84,7 @@ import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 private val APPS_ITEM_INSIDE_VERTICAL_PADDING = 10.dp
 private val APPS_ITEM_INSIDE_HORIZONTAL_PADDING = 16.dp
@@ -211,7 +212,8 @@ private fun AppList(
         ),
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().overScrollVertical(),
+            overscrollEffect = null,
             state = data.listState,
             contentPadding = PaddingValues(top = topPadding, bottom = bottomPadding),
         ) {

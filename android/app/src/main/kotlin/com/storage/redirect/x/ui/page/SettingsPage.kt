@@ -45,6 +45,7 @@ import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.utils.overScrollVertical
 
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall")
@@ -179,8 +180,9 @@ private fun SettingsPageMiuix(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .overScrollVertical()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), overscrollEffect = null)
         ) {
             Spacer(Modifier.height(innerPadding.calculateTopPadding() + PAGE_CONTENT_TOP_PADDING))
 
