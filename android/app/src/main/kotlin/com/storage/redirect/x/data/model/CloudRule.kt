@@ -17,24 +17,14 @@ data class CloudRule(
     val allowedRealPaths: List<String>,
     val pathMappings: List<StoragePathMapping>,
 ) {
-    val canEnableBasicRedirect: Boolean get() = recommendation == "recommended"
-
     fun descriptionFor(languageTag: String): String {
-        val preferred = when {
+        val locale = when {
             languageTag.startsWith("zh", true) &&
                 listOf("TW", "HK", "Hant").any { languageTag.contains(it, true) } -> "zh-TW"
             languageTag.startsWith("zh", true) -> "zh-CN"
             else -> "en"
         }
-        return description[preferred] ?: description["en"] ?: description["zh-CN"]
+        return description[locale] ?: description["en"] ?: description["zh-CN"]
             ?: description.values.firstOrNull().orEmpty()
     }
-
-    fun toTemplate(selectedPaths: Set<String>, selectedMappings: Set<String>): RedirectTemplate =
-        RedirectTemplate(
-            id = "cloud:$packageName",
-            name = packageName,
-            allowedRealPaths = allowedRealPaths.filter { it in selectedPaths },
-            pathMappings = pathMappings.filter { it.requestPath in selectedMappings },
-        )
 }

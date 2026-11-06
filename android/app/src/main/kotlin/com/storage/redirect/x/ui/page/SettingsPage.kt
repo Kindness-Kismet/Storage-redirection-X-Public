@@ -29,6 +29,7 @@ import com.storage.redirect.x.BuildConfig
 import com.storage.redirect.x.R
 import com.storage.redirect.x.data.repository.ConfigRepository
 import com.storage.redirect.x.data.cache.AppPreferences
+import com.storage.redirect.x.data.cache.CloudRulePreferences
 import com.storage.redirect.x.data.cache.PreferenceKeys
 import com.storage.redirect.x.util.BackupRestoreNotifier
 import com.storage.redirect.x.ui.component.PAGE_CONTENT_TOP_PADDING
@@ -137,6 +138,7 @@ private fun SettingsPageMiuix(
         stringResource(R.string.language_zh_cn),
     )
     val languageIndex = AppPreferences.getInt(PreferenceKeys.LANGUAGE, 0).coerceIn(languageOptions.indices)
+    val useCloudRules by CloudRulePreferences.enabled.collectAsState()
     val scrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
     val canOperateRoot = uiState.hasRoot == true && !uiState.isWorking
     val rootActionSummary = when {
@@ -207,6 +209,20 @@ private fun SettingsPageMiuix(
                         // 通过 recreate 触发 attachBaseContext 应用新语言
                         (context as? Activity)?.recreate()
                     }
+                )
+            }
+
+            Spacer(Modifier.height(PAGE_GROUP_GAP))
+
+            SmallTitle(text = stringResource(R.string.cloud_rules_title))
+            Card(modifier = Modifier.padding(horizontal = PAGE_HORIZONTAL_PADDING)) {
+                SwitchPreference(
+                    title = stringResource(R.string.cloud_rules_use),
+                    summary = stringResource(R.string.cloud_rules_settings_summary),
+                    startAction = { PreferenceIcon(AppIcons.Cloud) },
+                    checked = useCloudRules,
+                    onCheckedChange = CloudRulePreferences::setEnabled,
+                    modifier = Modifier.testTag("settings_cloud_rules"),
                 )
             }
 

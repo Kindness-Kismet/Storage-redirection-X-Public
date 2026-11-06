@@ -332,6 +332,8 @@ PYTHONUTF8=1 python scripts/build.py build-all --debug
 
 ## 云端规则
 
-在应用配置页打开“云端规则”，预览 [Kindness-Net/storage-redirection-x-rules](https://github.com/Kindness-Net/storage-redirection-x-rules) 中的 SRX 原生规则。首次打开会下载完整目录，之后使用本地缓存；通过“更新云端规则”手动刷新，失败时保留旧缓存。下载不会自动修改配置，也不上传已安装应用列表。
+“使用云端规则”是管理器的全局开关，对其管理的所有应用和 Android 用户生效。在任意应用的云端规则卡片或设置页开启一次后，所有应用页都会同步显示开启状态，并展示当前应用的简短建议。各应用的重定向开关保持独立。
 
-勾选路径并阅读迁移限制后，选择合并或替换。应用规则会为当前 Android 用户启用重定向；共享 UID 应用需再次确认。已有文件不会搬移，上游认证状态不代表经过 SRX 实机验证。
+全局开启后，打开某个应用的重定向开关，会自动合并 [Kindness-Net/storage-redirection-x-rules](https://github.com/Kindness-Net/storage-redirection-x-rules) 中匹配的 SRX 原生规则。同路径以已有手动配置为准，共享 UID 应用继续保持配置同步；云端暂时不可用时仍可按本地配置开启。
+
+管理器使用离线缓存，缓存超过 24 小时后按需更新。关闭云端规则只停止后续自动引入，不删除现有应用配置或文件。迁移详情保存在规则仓库中。

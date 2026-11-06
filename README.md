@@ -332,6 +332,8 @@ If you like my work, please consider supporting ongoing maintenance through [Afd
 
 ## Cloud Rules
 
-Open an app in `Apps`, then choose `Cloud rules` to preview its native SRX rules from [Kindness-Net/storage-redirection-x-rules](https://github.com/Kindness-Net/storage-redirection-x-rules). The first use downloads the catalog; `Update cloud rules` refreshes it manually. The last valid download remains available offline. Downloading never applies rules automatically or uploads installed-app lists.
+`Use cloud rules` is a global manager preference, shared across all app configuration pages and Android users managed by the app. Enable it once from a cloud-rule card or Settings. The card then shows a short recommendation for the selected app. Each app retains its own redirection switch.
 
-Select paths, review migration limitations, and choose merge or replace. Applying enables redirection for the selected Android user and asks for confirmation before synchronizing shared UID packages. Existing files are not moved. Historical upstream verification does not imply SRX device testing.
+When cloud rules are enabled, turning on an app's redirection automatically merges its matching native SRX rules from [Kindness-Net/storage-redirection-x-rules](https://github.com/Kindness-Net/storage-redirection-x-rules). Existing manual settings take precedence, and shared UID packages keep synchronized configurations. If the catalog is unavailable, the switch still uses local settings.
+
+The manager uses an offline cache and refreshes it on demand when older than 24 hours. Turning off cloud rules stops future automatic imports; existing app configurations and files remain intact. Migration details are documented in the rule repository.
