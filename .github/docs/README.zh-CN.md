@@ -329,3 +329,11 @@ PYTHONUTF8=1 python scripts/build.py build-all --debug
 ## 支持项目
 
 如果你喜欢我的工作，欢迎通过[爱发电](https://afdian.com/a/KiritoXD)支持项目维护，让开发能长久继续。谢谢你们！
+
+## 云端规则
+
+“使用云端规则”是管理器的全局开关，对其管理的所有应用和 Android 用户生效。在任意应用的云端规则卡片或设置页开启一次后，所有应用页都会同步显示开启状态，并展示当前应用的简短建议。各应用的重定向开关保持独立。
+
+全局开启后，打开某个应用的重定向开关，会自动合并 [Kindness-Net/storage-redirection-x-rules](https://github.com/Kindness-Net/storage-redirection-x-rules) 中匹配的 SRX 原生规则。同路径以已有手动配置为准，共享 UID 应用继续保持配置同步；云端暂时不可用时仍可按本地配置开启。
+
+管理器使用离线缓存，缓存超过 24 小时后按需更新。关闭云端规则只停止后续自动引入，不删除现有应用配置或文件。迁移详情保存在规则仓库中。

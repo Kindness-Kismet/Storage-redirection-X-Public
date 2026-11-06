@@ -377,4 +377,20 @@
     <string name="monitor_disabled_summary">Enable file monitoring in settings to view app file access records.</string>
     <string name="monitor_load_failed_summary">Monitoring records could not be loaded. Check the module status and try again.</string>
     <string name="monitor_filter_description">Filter: %1$s</string>
+    <string name="cloud_rules_title">Cloud rules</string>
+    <string name="cloud_rules_global">Global cloud rules</string>
+    <string name="cloud_rules_use">Use cloud rules</string>
+    <string name="cloud_rules_settings_summary">Automatically match rules for all apps when enabling redirection.</string>
+    <string name="cloud_rules_match_all">Automatically match app rules</string>
+    <string name="cloud_rules_recommended">Redirection recommended</string>
+    <string name="cloud_rules_unnecessary">Redirection is unnecessary</string>
+    <string name="cloud_rules_not_recommended">Redirection not recommended</string>
+    <string name="cloud_rules_cause_problems">Redirection may cause issues</string>
+    <string name="cloud_rules_depends">Enable according to your needs</string>
+    <string name="cloud_rules_manual">Manual configuration recommended</string>
+    <string name="cloud_rules_unavailable">Temporarily unavailable</string>
+    <string name="cloud_rules_not_found">No matching rule yet</string>
+    <string name="cloud_rules_loading">Loading rules…</string>
+    <string name="cloud_rules_enable">Enable</string>
+    <string name="cloud_rules_retry">Retry</string>
 </resources>

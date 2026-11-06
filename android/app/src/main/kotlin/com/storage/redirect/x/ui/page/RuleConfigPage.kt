@@ -60,6 +60,9 @@ import com.storage.redirect.x.ui.component.SrxTopAppBar
 import com.storage.redirect.x.ui.navigation.LocalPageReady
 import com.storage.redirect.x.ui.navigation.PageStackHost
 import com.storage.redirect.x.ui.navigation.rememberPageStack
+import com.storage.redirect.x.data.model.CloudRuleDefaults
+import com.storage.redirect.x.ui.page.cloudrules.CloudRuleCard
+import com.storage.redirect.x.ui.page.cloudrules.rememberCloudRuleState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -104,6 +107,7 @@ fun RuleConfigPage(
     val sharedUidRepo = remember { SharedUidRepository() }
     val pathBrowserRepo = remember { PathBrowserRepository() }
     val templateRepo = remember { TemplateRepository() }
+    val cloudRuleState = rememberCloudRuleState()
     val scope = rememberCoroutineScope()
 
     var isLoading by remember { mutableStateOf(true) }
@@ -178,6 +182,16 @@ fun RuleConfigPage(
             saveMutex.withLock {
                 configRepo.saveAppConfigs(finalConfig, affectedPackages)
             }
+        }
+    }
+
+    fun setRedirectEnabled(enabled: Boolean) {
+        if (!enabled) {
+            saveConfig(config.removeApp(packageName))
+            return
+        }
+        cloudRuleState.enable(packageName) { rule ->
+            saveConfig(CloudRuleDefaults.enable(config, packageName, rule))
         }
     }
 
@@ -384,11 +398,8 @@ fun RuleConfigPage(
                                         placeholderColor = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f),
                                     )
                                 },
-                                onCheckedChange = { enabled ->
-                                    val newConfig = if (enabled) config.addApp(packageName)
-                                    else config.removeApp(packageName)
-                                    saveConfig(newConfig)
-                                }
+                                enabled = !cloudRuleState.isEnabling,
+                                onCheckedChange = ::setRedirectEnabled,
                             )
                         }
                     }
@@ -399,6 +410,14 @@ fun RuleConfigPage(
                             Spacer(Modifier.height(PAGE_ITEM_GAP))
                             SharedUidCard(sharedPackages)
                         }
+                    }
+
+                    item {
+                        CloudRuleCard(
+                            state = cloudRuleState,
+                            packageName = packageName,
+                            modifier = Modifier.padding(top = PAGE_ITEM_GAP),
+                        )
                     }
 
                     // 允许访问路径：添加入口固定在卡片底部
