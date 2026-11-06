@@ -329,3 +329,9 @@ PYTHONUTF8=1 python scripts/build.py build-all --debug
 ## 支持项目
 
 如果你喜欢我的工作，欢迎通过[爱发电](https://afdian.com/a/KiritoXD)支持项目维护，让开发能长久继续。谢谢你们！
+
+## 云端规则
+
+在应用配置页打开“云端规则”，预览 [Kindness-Net/storage-redirection-x-rules](https://github.com/Kindness-Net/storage-redirection-x-rules) 中的 SRX 原生规则。首次打开会下载完整目录，之后使用本地缓存；通过“更新云端规则”手动刷新，失败时保留旧缓存。下载不会自动修改配置，也不上传已安装应用列表。
+
+勾选路径并阅读迁移限制后，选择合并或替换。应用规则会为当前 Android 用户启用重定向；共享 UID 应用需再次确认。已有文件不会搬移，上游认证状态不代表经过 SRX 实机验证。

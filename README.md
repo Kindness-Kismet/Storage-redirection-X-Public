@@ -329,3 +329,9 @@ Useful options:
 ## Support
 
 If you like my work, please consider supporting ongoing maintenance through [Afdian](https://afdian.com/a/KiritoXD). Your support helps keep the project sustainable. Thank you!
+
+## Cloud Rules
+
+Open an app in `Apps`, then choose `Cloud rules` to preview its native SRX rules from [Kindness-Net/storage-redirection-x-rules](https://github.com/Kindness-Net/storage-redirection-x-rules). The first use downloads the catalog; `Update cloud rules` refreshes it manually. The last valid download remains available offline. Downloading never applies rules automatically or uploads installed-app lists.
+
+Select paths, review migration limitations, and choose merge or replace. Applying enables redirection for the selected Android user and asks for confirmation before synchronizing shared UID packages. Existing files are not moved. Historical upstream verification does not imply SRX device testing.

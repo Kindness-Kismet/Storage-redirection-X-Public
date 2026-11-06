@@ -60,6 +60,9 @@ import com.storage.redirect.x.ui.component.SrxTopAppBar
 import com.storage.redirect.x.ui.navigation.LocalPageReady
 import com.storage.redirect.x.ui.navigation.PageStackHost
 import com.storage.redirect.x.ui.navigation.rememberPageStack
+import com.storage.redirect.x.ui.page.cloudrules.CloudRuleDialog
+import com.storage.redirect.x.ui.page.cloudrules.CloudRuleEntry
+import com.storage.redirect.x.ui.page.cloudrules.rememberCloudRuleState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -104,6 +107,7 @@ fun RuleConfigPage(
     val sharedUidRepo = remember { SharedUidRepository() }
     val pathBrowserRepo = remember { PathBrowserRepository() }
     val templateRepo = remember { TemplateRepository() }
+    val cloudRuleState = rememberCloudRuleState()
     val scope = rememberCoroutineScope()
 
     var isLoading by remember { mutableStateOf(true) }
@@ -133,6 +137,7 @@ fun RuleConfigPage(
     val showTemplatePicker = remember { mutableStateOf(false) }
     val showApplyModeDialog = remember { mutableStateOf(false) }
     var selectedTemplate by remember { mutableStateOf<RedirectTemplate?>(null) }
+    val isCloudRuleSelection = selectedTemplate?.id?.startsWith("cloud:") == true
     var pendingApplyMode by remember { mutableStateOf<TemplateApplyMode?>(null) }
     val showSharedUidApplyDialog = remember { mutableStateOf(false) }
     val onReady = LocalPageReady.current
@@ -208,7 +213,11 @@ fun RuleConfigPage(
             }
             Toast.makeText(
                 context,
-                if (isSaved) R.string.apps_template_apply_success else R.string.rule_config_save_failed,
+                when {
+                    !isSaved -> R.string.rule_config_save_failed
+                    isCloudRuleSelection -> R.string.cloud_rules_applied
+                    else -> R.string.apps_template_apply_success
+                },
                 Toast.LENGTH_SHORT,
             ).show()
         }
@@ -401,6 +410,11 @@ fun RuleConfigPage(
                         }
                     }
 
+                    item {
+                        Spacer(Modifier.height(PAGE_ITEM_GAP))
+                        CloudRuleEntry(cloudRuleState)
+                    }
+
                     // 允许访问路径：添加入口固定在卡片底部
                     item {
                         RuleSectionTitle(
@@ -494,6 +508,12 @@ fun RuleConfigPage(
                 }
             }
         }
+    }
+
+    CloudRuleDialog(cloudRuleState, packageName) { template ->
+        clearTemplateSelection()
+        selectedTemplate = template
+        showApplyModeDialog.value = true
     }
 
     // 映射添加弹窗
@@ -627,8 +647,9 @@ fun RuleConfigPage(
 
     WindowDialog(
         show = showApplyModeDialog.value,
-        title = stringResource(R.string.apps_template_apply_mode_title),
-        summary = stringResource(
+        title = stringResource(if (isCloudRuleSelection) R.string.cloud_rules_title else R.string.apps_template_apply_mode_title),
+        summary = if (isCloudRuleSelection) stringResource(R.string.cloud_rules_apply_summary, decodedAppName)
+        else stringResource(
             R.string.apps_template_apply_mode_summary,
             selectedTemplate?.name ?: "",
             decodedAppName,
@@ -672,7 +693,10 @@ fun RuleConfigPage(
     WindowDialog(
         show = showSharedUidApplyDialog.value,
         title = stringResource(R.string.apps_template_shared_uid_confirm_title),
-        summary = stringResource(R.string.apps_template_shared_uid_confirm_summary),
+        summary = stringResource(
+            if (isCloudRuleSelection) R.string.cloud_rules_shared_uid_summary
+            else R.string.apps_template_shared_uid_confirm_summary,
+        ),
         onDismissRequest = { clearTemplateSelection() },
     ) {
         Column(
